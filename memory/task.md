@@ -54,9 +54,9 @@
 - [x] Full score `breakdown` returned per trainer in API response
 
 ## Phase 9: Courses, Resources, Assessments, Certification
-- [ ] Full course lifecycle & resources
-- [ ] Assessment engine (MCQ, grading)
-- [ ] QR Certificate generation & public verification page
+- [x] Full course lifecycle & resources
+- [x] Assessment engine (MCQ, grading)
+- [x] QR Certificate generation & public verification page
 
 ## Phase 10: Analytics & Organizational Intelligence
 - [ ] Org intelligence queries (insights)

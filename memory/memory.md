@@ -14,6 +14,7 @@ We are building a scalable, enterprise-grade learning and capacity-building plat
 - **Phase 6 (Admin Module):** User management, Approval workflows for trainers/courses, and system audit logs API.
 - **Phase 7 (Competency Engine):** Implemented the Skill Gap Calculator (`gapValue = max(0, requiredLevel - currentLevel)`). Provides full skill gap reports and critical gap feeds, persisted as `SkillGapAnalysis`.
 - **Phase 8 (Matching Engine):** Multi-signal matching algorithm implemented (Skill Overlap 35%, Proficiency Delta 20%, Availability 15%, Experience 10%, Rating 10%, Certification 10%). Supports Trainee-to-Trainer and Course-to-Trainer matching with human-readable reasoning.
+- **Phase 9 (Courses, Assessments, Certification):** Full course lifecycle APIs, MCQ assessment engine with server-side grading & cheating prevention, and QR Certificate generation with a public verification endpoint.
 
 **Build Status:**
 - `npm run build` in `apps/api` succeeds with 0 errors. TypeScript configurations and cross-workspace imports (`@repo/db`) are working perfectly.
@@ -25,13 +26,10 @@ We are building a scalable, enterprise-grade learning and capacity-building plat
 
 ## Future Tasks & Implementation Plan
 
-### Phase 9: Courses, Resources, Assessments, Certification (Next Up)
-- Build out Course lifecycle APIs (CRUD for courses, modules, resources).
-- Implement the Assessment engine (MCQs, automated grading).
-- Create QR Certificate generation and a public verification endpoint.
-
-### Phase 10: Analytics & Organizational Intelligence
+### Phase 10: Analytics & Organizational Intelligence (Next Up)
 - Implement data aggregation for dashboards (Admin overview, Trainee stats).
+- Implement Org-wide competency heatmap (department × skill matrix).
+- Report generation endpoints (CSV/JSON).
 
 ### Phase 11: AI-Assisted Features
 - Implement the `AIService` stub (for features like `explainSkillGap`, `recommendTrainers`).

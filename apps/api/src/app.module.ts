@@ -11,6 +11,9 @@ import { TrainerModule } from './modules/trainer/trainer.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CompetencyModule } from './modules/competency/competency.module';
 import { MatchingModule } from './modules/matching/matching.module';
+import { CourseModule } from './modules/course/course.module';
+import { AssessmentModule } from './modules/assessment/assessment.module';
+import { CertificateModule } from './modules/certificate/certificate.module';
 import authConfig from './config/auth.config';
 
 @Module({
@@ -33,6 +36,10 @@ import authConfig from './config/auth.config';
     AdminModule,
     CompetencyModule,
     MatchingModule,
+    // ─── Phase 9: Courses, Assessments & Certification ──────────────────────────
+    CourseModule,
+    AssessmentModule,
+    CertificateModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
