@@ -8,10 +8,14 @@ import { v4 as uuidv4 } from 'uuid';
 import * as QRCode from 'qrcode';
 import { EnrollmentStatus } from '@repo/db';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../../common/services/audit.service';
 
 @Injectable()
 export class CertificateService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   /**
    * Issue a certificate for a completed enrollment.
@@ -20,7 +24,7 @@ export class CertificateService {
    * - Generates cryptographically unique verification token (UUID v4)
    * - Generates QR code as base64 data URL encoding the public verification URL
    */
-  async issueCertificate(enrollmentId: string, baseUrl: string): Promise<any> {
+  async issueCertificate(enrollmentId: string, baseUrl: string, issuerUserId: string, ipAddress: string | null = null): Promise<any> {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
@@ -44,7 +48,6 @@ export class CertificateService {
       );
     }
 
-    // Generate unique certificate number: CC-YYYYMMDD-{8 hex chars}
     const now = new Date();
     const dateStr =
       now.getFullYear().toString() +
@@ -53,47 +56,55 @@ export class CertificateService {
     const hexSuffix = uuidv4().replace(/-/g, '').substring(0, 8).toUpperCase();
     const certificateNumber = `CC-${dateStr}-${hexSuffix}`;
 
-    // Verification token (UUID v4 — used in the public verify URL)
     const verificationToken = uuidv4();
-
-    // Public verification URL
     const verificationUrl = `${baseUrl}/api/v1/certificates/verify/${verificationToken}`;
 
-    // Generate QR code as base64 data URL
     const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
       errorCorrectionLevel: 'H',
       width: 300,
     });
 
-    const certificate = await this.prisma.certificate.create({
-      data: {
-        enrollmentId,
-        certificateNumber,
-        traineeId: enrollment.traineeId,
-        courseId: enrollment.courseId,
-        trainerId: enrollment.course.trainerId,
-        issuedAt: now,
-        qrPayloadUrl: qrDataUrl,
-        verificationToken,
-      },
-      include: {
-        trainee: {
-          select: { id: true, user: { select: { email: true } } },
+    return this.prisma.$transaction(async (tx) => {
+      const certificate = await tx.certificate.create({
+        data: {
+          enrollmentId,
+          certificateNumber,
+          traineeId: enrollment.traineeId,
+          courseId: enrollment.courseId,
+          trainerId: enrollment.course.trainerId,
+          issuedAt: now,
+          qrPayloadUrl: qrDataUrl,
+          verificationToken,
         },
-        course: { select: { id: true, title: true, slug: true } },
-        trainer: {
-          select: {
-            id: true,
-            user: { select: { email: true } },
+        include: {
+          trainee: {
+            select: { id: true, user: { select: { email: true } } },
+          },
+          course: { select: { id: true, title: true, slug: true } },
+          trainer: {
+            select: {
+              id: true,
+              user: { select: { email: true } },
+            },
           },
         },
-      },
-    });
+      });
 
-    return {
-      ...certificate,
-      verificationUrl,
-    };
+      await this.auditService.log({
+        actorUserId: issuerUserId,
+        action: 'certificate.issued',
+        entityType: 'Certificate',
+        entityId: certificate.id,
+        ipAddress,
+        metadata: { certificateNumber, enrollmentId },
+        prisma: tx,
+      });
+
+      return {
+        ...certificate,
+        verificationUrl,
+      };
+    });
   }
 
   /**
@@ -181,12 +192,12 @@ export class CertificateService {
   /**
    * Get a specific certificate by ID.
    */
-  async getCertificate(certificateId: string): Promise<any> {
+  async getCertificate(certificateId: string, user: any): Promise<any> {
     const cert = await this.prisma.certificate.findUnique({
       where: { id: certificateId },
       include: {
         trainee: {
-          select: { id: true, user: { select: { email: true } } },
+          select: { id: true, userId: true, user: { select: { email: true } } },
         },
         course: { select: { id: true, title: true, slug: true } },
         trainer: {
@@ -200,6 +211,12 @@ export class CertificateService {
       },
     });
     if (!cert) throw new NotFoundException('Certificate not found');
+
+    const isAdmin = user?.roles?.some((r: any) => r.name === 'admin');
+    if (!isAdmin && cert.trainee.userId !== user.id) {
+      throw new NotFoundException('Certificate not found');
+    }
+
     return cert;
   }
 }

@@ -1,12 +1,18 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { sanitizeString } from '../../../common/utils/sanitize';
 
 export class CreateWorkExperienceDto {
   @IsNotEmpty()
   @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => sanitizeString(value))
   organization: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100)
+  @Transform(({ value }) => sanitizeString(value))
   role: string;
 
   @IsNotEmpty()
@@ -19,5 +25,7 @@ export class CreateWorkExperienceDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
+  @Transform(({ value }) => sanitizeString(value))
   description?: string;
 }

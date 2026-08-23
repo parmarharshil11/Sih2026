@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { CourseStatus, EnrollmentStatus, ProgressStatus } from '@repo/db';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../../common/services/audit.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CreateModuleDto, UpdateModuleDto } from './dto/create-module.dto';
@@ -16,7 +17,10 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
 export class CourseService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   // ─── Categories ───────────────────────────────────────────────────────────────
 
@@ -136,28 +140,41 @@ export class CourseService {
   async createCourse(
     trainerUserId: string,
     dto: CreateCourseDto,
+    ipAddress: string | null = null,
   ): Promise<any> {
     const trainerProfile = await this._requireTrainerProfile(trainerUserId);
-
     const slug = this._slugify(dto.title) + '-' + Date.now();
-
     const { skillIds, ...courseData } = dto;
 
-    return this.prisma.course.create({
-      data: {
-        ...courseData,
-        slug,
-        trainerId: trainerProfile.id,
-        status: CourseStatus.draft,
-        ...(skillIds?.length
-          ? {
-              courseSkills: {
-                create: skillIds.map((skillId) => ({ skillId })),
-              },
-            }
-          : {}),
-      },
-      include: { category: true, courseSkills: { include: { skill: true } } },
+    return this.prisma.$transaction(async (tx) => {
+      const course = await tx.course.create({
+        data: {
+          ...courseData,
+          slug,
+          trainerId: trainerProfile.id,
+          status: CourseStatus.draft,
+          ...(skillIds?.length
+            ? {
+                courseSkills: {
+                  create: skillIds.map((skillId) => ({ skillId })),
+                },
+              }
+            : {}),
+        },
+        include: { category: true, courseSkills: { include: { skill: true } } },
+      });
+
+      await this.auditService.log({
+        actorUserId: trainerUserId,
+        action: 'course.created',
+        entityType: 'Course',
+        entityId: course.id,
+        ipAddress,
+        metadata: { title: dto.title },
+        prisma: tx,
+      });
+
+      return course;
     });
   }
 
@@ -166,6 +183,7 @@ export class CourseService {
     courseId: string,
     dto: UpdateCourseDto,
     isAdmin = false,
+    ipAddress: string | null = null,
   ): Promise<any> {
     const course = await this._requireCourse(courseId);
     if (!isAdmin) {
@@ -183,24 +201,37 @@ export class CourseService {
 
     const { skillIds, ...courseData } = dto;
 
-    // Replace skill links if provided
-    if (skillIds !== undefined) {
-      await this.prisma.courseSkill.deleteMany({ where: { courseId } });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      if (skillIds !== undefined) {
+        await tx.courseSkill.deleteMany({ where: { courseId } });
+      }
 
-    return this.prisma.course.update({
-      where: { id: courseId },
-      data: {
-        ...courseData,
-        ...(skillIds?.length
-          ? {
-              courseSkills: {
-                create: skillIds.map((skillId) => ({ skillId })),
-              },
-            }
-          : {}),
-      },
-      include: { category: true, courseSkills: { include: { skill: true } } },
+      const updatedCourse = await tx.course.update({
+        where: { id: courseId },
+        data: {
+          ...courseData,
+          ...(skillIds?.length
+            ? {
+                courseSkills: {
+                  create: skillIds.map((skillId) => ({ skillId })),
+                },
+              }
+            : {}),
+        },
+        include: { category: true, courseSkills: { include: { skill: true } } },
+      });
+
+      await this.auditService.log({
+        actorUserId: trainerUserId,
+        action: 'course.updated',
+        entityType: 'Course',
+        entityId: courseId,
+        ipAddress,
+        metadata: { fieldsUpdated: Object.keys(dto) },
+        prisma: tx,
+      });
+
+      return updatedCourse;
     });
   }
 
@@ -208,18 +239,33 @@ export class CourseService {
     userId: string,
     courseId: string,
     isAdmin = false,
+    ipAddress: string | null = null,
   ): Promise<any> {
     const course = await this._requireCourse(courseId);
     if (!isAdmin) {
       await this._assertCourseOwner(userId, course);
     }
-    return this.prisma.course.update({
-      where: { id: courseId },
-      data: { deletedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const deletedCourse = await tx.course.update({
+        where: { id: courseId },
+        data: { deletedAt: new Date() },
+      });
+
+      await this.auditService.log({
+        actorUserId: userId,
+        action: 'course.deleted',
+        entityType: 'Course',
+        entityId: courseId,
+        ipAddress,
+        metadata: null,
+        prisma: tx,
+      });
+
+      return deletedCourse;
     });
   }
 
-  async submitForApproval(trainerUserId: string, courseId: string): Promise<any> {
+  async submitForApproval(trainerUserId: string, courseId: string, ipAddress: string | null = null): Promise<any> {
     const course = await this._requireCourse(courseId);
     await this._assertCourseOwner(trainerUserId, course);
 
@@ -229,7 +275,6 @@ export class CourseService {
       );
     }
 
-    // Must have at least one module
     const moduleCount = await this.prisma.courseModule.count({
       where: { courseId },
     });
@@ -239,35 +284,77 @@ export class CourseService {
       );
     }
 
-    return this.prisma.course.update({
-      where: { id: courseId },
-      data: { status: CourseStatus.pending_approval },
+    return this.prisma.$transaction(async (tx) => {
+      const updatedCourse = await tx.course.update({
+        where: { id: courseId },
+        data: { status: CourseStatus.pending_approval },
+      });
+
+      await this.auditService.log({
+        actorUserId: trainerUserId,
+        action: 'course.status_changed',
+        entityType: 'Course',
+        entityId: courseId,
+        ipAddress,
+        metadata: { newStatus: CourseStatus.pending_approval },
+        prisma: tx,
+      });
+
+      return updatedCourse;
     });
   }
 
-  async approveCourse(adminUserId: string, courseId: string): Promise<any> {
+  async approveCourse(adminUserId: string, courseId: string, ipAddress: string | null = null): Promise<any> {
     const course = await this._requireCourse(courseId);
     if (course.status !== CourseStatus.pending_approval) {
       throw new BadRequestException('Course is not pending approval');
     }
-    return this.prisma.course.update({
-      where: { id: courseId },
-      data: {
-        status: CourseStatus.published,
-        approvedById: adminUserId,
-        approvedAt: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updatedCourse = await tx.course.update({
+        where: { id: courseId },
+        data: {
+          status: CourseStatus.published,
+          approvedById: adminUserId,
+          approvedAt: new Date(),
+        },
+      });
+
+      await this.auditService.log({
+        actorUserId: adminUserId,
+        action: 'course.status_changed',
+        entityType: 'Course',
+        entityId: courseId,
+        ipAddress,
+        metadata: { newStatus: CourseStatus.published },
+        prisma: tx,
+      });
+
+      return updatedCourse;
     });
   }
 
-  async rejectCourse(adminUserId: string, courseId: string): Promise<any> {
+  async rejectCourse(adminUserId: string, courseId: string, ipAddress: string | null = null): Promise<any> {
     const course = await this._requireCourse(courseId);
     if (course.status !== CourseStatus.pending_approval) {
       throw new BadRequestException('Course is not pending approval');
     }
-    return this.prisma.course.update({
-      where: { id: courseId },
-      data: { status: CourseStatus.draft },
+    return this.prisma.$transaction(async (tx) => {
+      const updatedCourse = await tx.course.update({
+        where: { id: courseId },
+        data: { status: CourseStatus.draft },
+      });
+
+      await this.auditService.log({
+        actorUserId: adminUserId,
+        action: 'course.status_changed',
+        entityType: 'Course',
+        entityId: courseId,
+        ipAddress,
+        metadata: { newStatus: CourseStatus.draft },
+        prisma: tx,
+      });
+
+      return updatedCourse;
     });
   }
 
@@ -328,7 +415,7 @@ export class CourseService {
 
   // ─── Enrollment & Progress ────────────────────────────────────────────────────
 
-  async enroll(traineeUserId: string, dto: EnrollCourseDto): Promise<any> {
+  async enroll(traineeUserId: string, dto: EnrollCourseDto, ipAddress: string | null = null): Promise<any> {
     const traineeProfile = await this._requireTraineeProfile(traineeUserId);
     const course = await this._requireCourse(dto.courseId);
 
@@ -336,42 +423,53 @@ export class CourseService {
       throw new BadRequestException('Can only enroll in published courses');
     }
 
-    const existing = await this.prisma.enrollment.findUnique({
-      where: {
-        traineeId_courseId: {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.enrollment.findUnique({
+        where: {
+          traineeId_courseId: {
+            traineeId: traineeProfile.id,
+            courseId: dto.courseId,
+          },
+        },
+      });
+      if (existing) throw new ConflictException('Already enrolled in this course');
+
+      const enrollment = await tx.enrollment.create({
+        data: {
           traineeId: traineeProfile.id,
           courseId: dto.courseId,
+          status: EnrollmentStatus.started,
         },
-      },
-    });
-    if (existing) throw new ConflictException('Already enrolled in this course');
-
-    const enrollment = await this.prisma.enrollment.create({
-      data: {
-        traineeId: traineeProfile.id,
-        courseId: dto.courseId,
-        status: EnrollmentStatus.started,
-      },
-      include: { course: { select: { title: true, slug: true } } },
-    });
-
-    // Initialize progress records for all existing modules
-    const modules = await this.prisma.courseModule.findMany({
-      where: { courseId: dto.courseId },
-    });
-    if (modules.length) {
-      await this.prisma.courseProgress.createMany({
-        data: modules.map((m) => ({
-          enrollmentId: enrollment.id,
-          moduleId: m.id,
-          status: ProgressStatus.not_started,
-          progressPct: 0,
-        })),
-        skipDuplicates: true,
+        include: { course: { select: { title: true, slug: true } } },
       });
-    }
 
-    return enrollment;
+      const modules = await tx.courseModule.findMany({
+        where: { courseId: dto.courseId },
+      });
+      if (modules.length) {
+        await tx.courseProgress.createMany({
+          data: modules.map((m) => ({
+            enrollmentId: enrollment.id,
+            moduleId: m.id,
+            status: ProgressStatus.not_started,
+            progressPct: 0,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      await this.auditService.log({
+        actorUserId: traineeUserId,
+        action: 'course.enrolled',
+        entityType: 'Enrollment',
+        entityId: enrollment.id,
+        ipAddress,
+        metadata: { courseId: dto.courseId },
+        prisma: tx,
+      });
+
+      return enrollment;
+    });
   }
 
   async getMyEnrollments(traineeUserId: string): Promise<any> {

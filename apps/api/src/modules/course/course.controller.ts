@@ -10,7 +10,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { extractIp } from '../../common/utils/extract-ip';
 import { CourseService } from './course.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -75,8 +78,9 @@ export class CourseController {
   createCourse(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateCourseDto,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.courseService.createCourse(userId, dto);
+    return this.courseService.createCourse(userId, dto, extractIp(req));
   }
 
   @Get('courses/:id')
@@ -93,9 +97,10 @@ export class CourseController {
     @CurrentUser() user: any,
     @Param('id') id: string,
     @Body() dto: UpdateCourseDto,
+    @Req() req: Request,
   ): Promise<any> {
     const isAdmin = user?.roles?.some((r: any) => r.name === 'admin');
-    return this.courseService.updateCourse(userId, id, dto, isAdmin);
+    return this.courseService.updateCourse(userId, id, dto, isAdmin, extractIp(req));
   }
 
   @Delete('courses/:id')
@@ -106,9 +111,10 @@ export class CourseController {
     @CurrentUser('id') userId: string,
     @CurrentUser() user: any,
     @Param('id') id: string,
+    @Req() req: Request,
   ): Promise<any> {
     const isAdmin = user?.roles?.some((r: any) => r.name === 'admin');
-    return this.courseService.deleteCourse(userId, id, isAdmin);
+    return this.courseService.deleteCourse(userId, id, isAdmin, extractIp(req));
   }
 
   @Post('courses/:id/submit')
@@ -118,8 +124,9 @@ export class CourseController {
   submitForApproval(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.courseService.submitForApproval(userId, id);
+    return this.courseService.submitForApproval(userId, id, extractIp(req));
   }
 
   @Post('courses/:id/approve')
@@ -129,8 +136,9 @@ export class CourseController {
   approveCourse(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.courseService.approveCourse(userId, id);
+    return this.courseService.approveCourse(userId, id, extractIp(req));
   }
 
   @Post('courses/:id/reject')
@@ -140,8 +148,9 @@ export class CourseController {
   rejectCourse(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.courseService.rejectCourse(userId, id);
+    return this.courseService.rejectCourse(userId, id, extractIp(req));
   }
 
   // ─── Course Modules ───────────────────────────────────────────────────────────
@@ -191,8 +200,9 @@ export class CourseController {
   enroll(
     @CurrentUser('id') userId: string,
     @Body() dto: EnrollCourseDto,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.courseService.enroll(userId, dto);
+    return this.courseService.enroll(userId, dto, extractIp(req));
   }
 
   @Get('enrollments/me')

@@ -6,31 +6,50 @@ import {
 } from '@nestjs/common';
 import { AssessmentType } from '@repo/db';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../../common/services/audit.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { AddQuestionDto } from './dto/add-question.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 
 @Injectable()
 export class AssessmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   // ─── Assessment CRUD ──────────────────────────────────────────────────────────
 
   async createAssessment(
     creatorUserId: string,
     dto: CreateAssessmentDto,
+    ipAddress: string | null = null,
   ): Promise<any> {
-    return this.prisma.assessment.create({
-      data: {
-        courseId: dto.courseId,
-        subject: dto.subject,
-        type: dto.type,
-        timeLimitMinutes: dto.timeLimitMinutes,
-        passScorePct: dto.passScorePct ?? 60,
-        randomizeQuestions: dto.randomizeQuestions ?? true,
-        randomizeOptions: dto.randomizeOptions ?? true,
-        createdById: creatorUserId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const assessment = await tx.assessment.create({
+        data: {
+          courseId: dto.courseId,
+          subject: dto.subject,
+          type: dto.type,
+          timeLimitMinutes: dto.timeLimitMinutes,
+          passScorePct: dto.passScorePct ?? 60,
+          randomizeQuestions: dto.randomizeQuestions ?? true,
+          randomizeOptions: dto.randomizeOptions ?? true,
+          createdById: creatorUserId,
+        },
+      });
+
+      await this.auditService.log({
+        actorUserId: creatorUserId,
+        action: 'assessment.created',
+        entityType: 'Assessment',
+        entityId: assessment.id,
+        ipAddress,
+        metadata: { courseId: dto.courseId, type: dto.type },
+        prisma: tx,
+      });
+
+      return assessment;
     });
   }
 
@@ -66,11 +85,11 @@ export class AssessmentService {
     trainerUserId: string,
     assessmentId: string,
     dto: AddQuestionDto,
+    ipAddress: string | null = null,
   ): Promise<any> {
     const assessment = await this._requireAssessment(assessmentId);
     await this._assertAssessmentOwner(trainerUserId, assessment);
 
-    // Validate: single_mcq and true_false must have exactly one correct option
     const correctCount = dto.options.filter((o) => o.isCorrect).length;
     if (dto.questionType === 'single_mcq' || dto.questionType === 'true_false') {
       if (correctCount !== 1) {
@@ -85,23 +104,37 @@ export class AssessmentService {
       );
     }
 
-    return this.prisma.assessmentQuestion.create({
-      data: {
-        assessmentId,
-        questionType: dto.questionType,
-        questionText: dto.questionText,
-        difficulty: dto.difficulty,
-        points: dto.points,
-        options: {
-          create: dto.options.map((o) => ({
-            optionText: o.optionText,
-            isCorrect: o.isCorrect,
-          })),
+    return this.prisma.$transaction(async (tx) => {
+      const question = await tx.assessmentQuestion.create({
+        data: {
+          assessmentId,
+          questionType: dto.questionType,
+          questionText: dto.questionText,
+          difficulty: dto.difficulty,
+          points: dto.points,
+          options: {
+            create: dto.options.map((o) => ({
+              optionText: o.optionText,
+              isCorrect: o.isCorrect,
+            })),
+          },
         },
-      },
-      include: {
-        options: { select: { id: true, optionText: true } }, // no isCorrect
-      },
+        include: {
+          options: { select: { id: true, optionText: true } },
+        },
+      });
+
+      await this.auditService.log({
+        actorUserId: trainerUserId,
+        action: 'assessment.question_added',
+        entityType: 'AssessmentQuestion',
+        entityId: question.id,
+        ipAddress,
+        metadata: { assessmentId, questionType: dto.questionType },
+        prisma: tx,
+      });
+
+      return question;
     });
   }
 
@@ -199,6 +232,7 @@ export class AssessmentService {
     assessmentId: string,
     attemptId: string,
     dto: SubmitAttemptDto,
+    ipAddress: string | null = null,
   ): Promise<any> {
     const traineeProfile = await this._requireTraineeProfile(traineeUserId);
 
@@ -215,23 +249,19 @@ export class AssessmentService {
       throw new BadRequestException('Attempt already submitted');
     }
 
-    // Enforce time limit server-side
     if (attempt.assessment.timeLimitMinutes) {
       const elapsedMs = Date.now() - attempt.startedAt.getTime();
       const limitMs = attempt.assessment.timeLimitMinutes * 60 * 1000;
       if (elapsedMs > limitMs + 30_000) {
-        // 30s grace period for network latency
         throw new BadRequestException('Time limit exceeded');
       }
     }
 
-    // Fetch correct answers from DB
     const questions = await this.prisma.assessmentQuestion.findMany({
       where: { assessmentId },
       include: { options: { where: { isCorrect: true } } },
     });
 
-    // Build correct answer map
     const correctMap = new Map<string, Set<string>>();
     let totalPoints = 0;
     for (const q of questions) {
@@ -240,7 +270,6 @@ export class AssessmentService {
       totalPoints += q.points;
     }
 
-    // Grade each answer
     let earnedPoints = 0;
     const answerRecords: any[] = [];
 
@@ -249,7 +278,6 @@ export class AssessmentService {
       if (!correctIds) continue;
 
       const selected = new Set(answer.selectedOptionIds);
-      // Correct if selected exactly matches correct set
       const isCorrect =
         selected.size === correctIds.size &&
         [...selected].every((id) => correctIds.has(id));
@@ -271,28 +299,37 @@ export class AssessmentService {
     const passed = scorePct >= attempt.assessment.passScorePct;
     const submittedAt = new Date();
 
-    // Persist answers and update attempt atomically
-    await this.prisma.$transaction([
-      this.prisma.assessmentAnswer.createMany({ data: answerRecords }),
-      this.prisma.assessmentAttempt.update({
+    return this.prisma.$transaction(async (tx) => {
+      await tx.assessmentAnswer.createMany({ data: answerRecords });
+      await tx.assessmentAttempt.update({
         where: { id: attemptId },
         data: {
           submittedAt,
           scorePct,
           passed,
         },
-      }),
-    ]);
+      });
 
-    return {
-      attemptId,
-      scorePct: Math.round(scorePct * 100) / 100,
-      passed,
-      earnedPoints,
-      totalPoints,
-      passScorePct: attempt.assessment.passScorePct,
-      submittedAt,
-    };
+      await this.auditService.log({
+        actorUserId: traineeUserId,
+        action: 'assessment.attempt_submitted',
+        entityType: 'AssessmentAttempt',
+        entityId: attemptId,
+        ipAddress,
+        metadata: { scorePct, passed },
+        prisma: tx,
+      });
+
+      return {
+        attemptId,
+        scorePct: Math.round(scorePct * 100) / 100,
+        passed,
+        earnedPoints,
+        totalPoints,
+        passScorePct: attempt.assessment.passScorePct,
+        submittedAt,
+      };
+    });
   }
 
   async getMyAttempts(

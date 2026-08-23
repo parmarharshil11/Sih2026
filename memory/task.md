@@ -42,7 +42,7 @@
 - [x] Full gap report endpoint (sorted by severity, with summary counts)
 - [x] Critical-gaps filter endpoint (minLevel query param)
 - [x] Admin/Trainer: view any trainee's gap report
-- [ ] Org competency heatmap
+- [x] Org competency heatmap
 
 ## Phase 8: Trainer Matching Engine
 - [x] Multi-signal scoring algorithm (6 weighted factors: skill overlap 35%, proficiency delta 20%, availability 15%, experience 10%, rating 10%, certification 10%)
@@ -59,25 +59,25 @@
 - [x] QR Certificate generation & public verification page
 
 ## Phase 10: Analytics & Organizational Intelligence
-- [ ] Org intelligence queries (insights)
-- [ ] Analytics dashboards & Reports
+- [x] Org intelligence queries (insights)
+- [x] Analytics dashboards & Reports
 
 ## Phase 11: AI-Assisted Features
-- [ ] Implement `AIService` (explainSkillGap, recommendTrainers, etc.)
-- [ ] Verify AI security constraints
+- [x] Implement `AIService` (explainSkillGap, recommendTrainers, draftCourseOutline)
+- [x] Verify AI security constraints (no permission writes, forced draft status)
 
 ## Phase 12: Security, Audit Logging & Validation
-- [ ] Input validation (DTOs) & Error handling
-- [ ] Audit log entries for sensitive actions
-- [ ] Security testing suite
+- [x] Input validation (DTOs) & Error handling
+- [x] Audit log entries for sensitive actions via transactions across all services
+- [x] Security testing suite
 
 ## Phase 13: Responsive UI & Accessibility
-- [ ] Build UI (Trainee, Trainer, Admin, Public)
-- [ ] Accessibility & Responsive checks
+- [x] Build Next.js UI (Trainee Portal, Trainer Studio, Admin Console, Public Landing Page, QR Verifier)
+- [x] Accessibility & Responsive glassmorphism styling (`globals.css`)
 
 ## Phase 14: Seed Realistic Data
-- [ ] Seed script for demo data
-- [ ] Tag seeded data and generate demo credentials
+- [x] Seed script for demo data (`packages/db/prisma/seed.ts`)
+- [x] Seeded Departments, Admin, Trainers, Trainees, Courses, MCQs, Certificates, and Audit Logs
 
 ## Phase 15: Testing, Bug Identification & Fixing
 - [ ] Run test suite (Unit, Integration, E2E)

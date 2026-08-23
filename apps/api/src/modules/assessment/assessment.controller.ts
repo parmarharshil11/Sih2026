@@ -8,7 +8,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { extractIp } from '../../common/utils/extract-ip';
 import { AssessmentService } from './assessment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -31,8 +34,9 @@ export class AssessmentController {
   createAssessment(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateAssessmentDto,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.assessmentService.createAssessment(userId, dto);
+    return this.assessmentService.createAssessment(userId, dto, extractIp(req));
   }
 
   @Get('assessments/:id')
@@ -49,8 +53,9 @@ export class AssessmentController {
     @CurrentUser('id') userId: string,
     @Param('id') assessmentId: string,
     @Body() dto: AddQuestionDto,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.assessmentService.addQuestion(userId, assessmentId, dto);
+    return this.assessmentService.addQuestion(userId, assessmentId, dto, extractIp(req));
   }
 
   @Delete('assessments/:id/questions/:questionId')
@@ -93,8 +98,9 @@ export class AssessmentController {
     @Param('id') assessmentId: string,
     @Param('attemptId') attemptId: string,
     @Body() dto: SubmitAttemptDto,
+    @Req() req: Request,
   ): Promise<any> {
-    return this.assessmentService.submitAttempt(userId, assessmentId, attemptId, dto);
+    return this.assessmentService.submitAttempt(userId, assessmentId, attemptId, dto, extractIp(req));
   }
 
   @Get('assessments/:id/attempts')

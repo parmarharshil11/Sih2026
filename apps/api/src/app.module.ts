@@ -14,6 +14,8 @@ import { MatchingModule } from './modules/matching/matching.module';
 import { CourseModule } from './modules/course/course.module';
 import { AssessmentModule } from './modules/assessment/assessment.module';
 import { CertificateModule } from './modules/certificate/certificate.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AiModule } from './modules/ai/ai.module';
 import authConfig from './config/auth.config';
 
 @Module({
@@ -23,11 +25,10 @@ import authConfig from './config/auth.config';
       load: [authConfig],
     }),
     ThrottlerModule.forRoot([
-      {
-        ttl: 15 * 60 * 1000,
-        limit: 5,
-        name: 'auth',
-      },
+      { name: 'default', ttl: 60 * 1000, limit: 100 },
+      { name: 'auth', ttl: 15 * 60 * 1000, limit: 5 },
+      { name: 'register', ttl: 60 * 60 * 1000, limit: 3 },
+      { name: 'ai', ttl: 60 * 1000, limit: 10 },
     ]),
     PrismaModule,
     AuthModule,
@@ -40,6 +41,9 @@ import authConfig from './config/auth.config';
     CourseModule,
     AssessmentModule,
     CertificateModule,
+    // ─── Phase 10 & 11: Analytics and AI ─────────────────────────────────────────
+    AnalyticsModule,
+    AiModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

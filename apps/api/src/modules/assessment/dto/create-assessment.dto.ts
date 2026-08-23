@@ -8,7 +8,11 @@ import {
   Min,
   Max,
   IsUUID,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { sanitizeString } from '../../../common/utils/sanitize';
 import { AssessmentType } from '@repo/db';
 
 export class CreateAssessmentDto {
@@ -18,6 +22,9 @@ export class CreateAssessmentDto {
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(200)
+  @Transform(({ value }) => sanitizeString(value))
   subject: string;
 
   @IsEnum(AssessmentType)

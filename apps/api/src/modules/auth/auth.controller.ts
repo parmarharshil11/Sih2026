@@ -9,8 +9,11 @@ import {
   Req,
   Res,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Response, Request } from 'express';
+import { extractIp } from '../../common/utils/extract-ip';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -25,20 +28,22 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ register: { limit: 3, ttl: 3600000 } })
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, extractIp(req));
   }
 
   @Get('verify-email/:token')
-  verifyEmail(@Param('token') token: string) {
+  verifyEmail(@Param('token', ParseUUIDPipe) token: string) {
     return this.authService.verifyEmail(token);
   }
 
   @Post('login')
+  @Throttle({ auth: { limit: 5, ttl: 900000 } })
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    return this.authService.login(dto, res);
+  login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response, @Req() req: Request) {
+    return this.authService.login(dto, res, extractIp(req));
   }
 
   @Post('logout')
@@ -50,7 +55,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const jti = (req as any).user?.jti;
-    return this.authService.logout(userId, jti, res);
+    return this.authService.logout(userId, jti, res, extractIp(req));
   }
 
   @Post('refresh')
@@ -62,15 +67,17 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ register: { limit: 3, ttl: 3600000 } })
   @HttpCode(HttpStatus.OK)
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto.email);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto.email, extractIp(req));
   }
 
   @Post('reset-password')
+  @Throttle({ auth: { limit: 5, ttl: 900000 } })
   @HttpCode(HttpStatus.OK)
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto.token, dto.password);
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(dto.token, dto.password, extractIp(req));
   }
 
   @Get('me')

@@ -17,6 +17,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { IsUUID, IsNotEmpty } from 'class-validator';
+import { extractIp } from '../../common/utils/extract-ip';
 
 class IssueCertificateDto {
   @IsUUID()
@@ -37,11 +38,7 @@ export class CertificateController {
     @Param('token') token: string,
     @Req() req: Request,
   ): Promise<any> {
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      null;
-    return this.certificateService.verifyCertificate(token, ip);
+    return this.certificateService.verifyCertificate(token, extractIp(req));
   }
 
   /**
@@ -53,12 +50,13 @@ export class CertificateController {
   @HttpCode(HttpStatus.CREATED)
   issueCertificate(
     @Body() dto: IssueCertificateDto,
+    @CurrentUser('id') userId: string,
     @Req() req: Request,
   ): Promise<any> {
     const baseUrl =
       process.env.API_BASE_URL ??
       `${req.protocol}://${req.get('host')}`;
-    return this.certificateService.issueCertificate(dto.enrollmentId, baseUrl);
+    return this.certificateService.issueCertificate(dto.enrollmentId, baseUrl, userId, extractIp(req));
   }
 
   @Get('me')
@@ -70,7 +68,10 @@ export class CertificateController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  getCertificate(@Param('id') id: string): Promise<any> {
-    return this.certificateService.getCertificate(id);
+  getCertificate(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ): Promise<any> {
+    return this.certificateService.getCertificate(id, user);
   }
 }
