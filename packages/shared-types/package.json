@@ -1,0 +1,9 @@
+{
+  "name": "@repo/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Building Shared Types...'",
+    "lint": "echo 'Linting Shared Types...'"
+  }
+}

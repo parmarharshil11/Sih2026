@@ -1,0 +1,942 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity & Access ────────────────────────────────────────────────────────
+
+model User {
+  id                       String    @id @default(uuid())
+  email                    String    @unique
+  passwordHash             String
+  status                   UserStatus @default(pending)
+  emailVerifiedAt          DateTime?
+  emailVerificationToken   String?   @unique
+  passwordResetToken       String?   @unique
+  passwordResetExpiresAt   DateTime?
+  lastLoginAt              DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  userRoles              UserRole[]
+  traineeProfile         TraineeProfile?
+  trainerProfile         TrainerProfile?
+  refreshTokens          RefreshToken[]
+  auditLogs              AuditLog[]       @relation("ActorAuditLogs")
+  uploadedResources      CourseResource[]
+  createdAssessments     Assessment[]
+  createdCourses         Course[]
+  notifications          Notification[]
+  announcements          Announcement[]
+  achievements           Achievement[]
+  knowledgeHubItems      KnowledgeHubItem[]
+
+  @@map("users")
+}
+
+enum UserStatus {
+  pending
+  active
+  suspended
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles        UserRole[]
+  rolePermissions  RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String   @id  // = JTI (JWT ID)
+  userId    String
+  tokenHash String
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorUserId  String?
+  action       String
+  entityType   String
+  entityId     String?
+  ipAddress    String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation("ActorAuditLogs", fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ─── Profiles ────────────────────────────────────────────────────────────────
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  traineeProfiles  TraineeProfile[]
+  trainerProfiles  TrainerProfile[]
+  knowledgeHub     KnowledgeHubItem[]
+
+  @@map("departments")
+}
+
+model TraineeProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  departmentId         String?
+  headline             String?
+  bio                  String?
+  profilePhotoUrl      String?
+  profileCompletionPct Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                User              @relation(fields: [userId], references: [id])
+  department          Department?       @relation(fields: [departmentId], references: [id])
+  qualifications      Qualification[]   @relation("TraineeQualifications")
+  workExperiences     WorkExperience[]
+  interests           Interest[]
+  externalCerts       ExternalCertificate[]
+  traineeCompetencies TraineeCompetency[]
+  enrollments         Enrollment[]
+  assessmentAttempts  AssessmentAttempt[]
+  certificates        Certificate[]
+  feedback            Feedback[]
+  trainerMatchScores  TrainerMatchScore[] @relation("TraineeMatchScores")
+  learningPaths       LearningPath[]
+  questResponses      QuestionnaireResponse[]
+  achievements        Achievement[]
+
+  @@index([userId])
+  @@index([departmentId])
+  @@map("trainee_profiles")
+}
+
+model TrainerProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  departmentId       String?
+  bio                String?
+  verificationStatus VerificationStatus @default(pending)
+  yearsExperience    Int                @default(0)
+  trainerRatingAvg   Decimal            @default(0) @db.Decimal(3, 2)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id])
+  department      Department?        @relation(fields: [departmentId], references: [id])
+  qualifications  Qualification[]    @relation("TrainerQualifications")
+  expertise       TrainerExpertise[]
+  availability    TrainerAvailability[]
+  courses         Course[]
+  ratings         Rating?
+  certificates    Certificate[]
+  trainerMatchScores TrainerMatchScore[] @relation("TrainerMatchScores")
+  questionnaires  Questionnaire[]
+
+  @@index([userId])
+  @@index([departmentId])
+  @@map("trainer_profiles")
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+}
+
+model Qualification {
+  id               String   @id @default(uuid())
+  profileOwnerId   String
+  profileOwnerType String   // 'trainee' | 'trainer'
+  degree           String
+  institution      String
+  year             Int
+  documentUrl      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  traineeProfile  TraineeProfile?  @relation("TraineeQualifications", fields: [profileOwnerId], references: [id], map: "qual_trainee_fk")
+  trainerProfile  TrainerProfile?  @relation("TrainerQualifications", fields: [profileOwnerId], references: [id], map: "qual_trainer_fk")
+
+  @@index([profileOwnerId])
+  @@map("qualifications")
+}
+
+model WorkExperience {
+  id               String   @id @default(uuid())
+  traineeProfileId String
+  organization     String
+  role             String
+  startDate        DateTime
+  endDate          DateTime?
+  description      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  traineeProfile TraineeProfile @relation(fields: [traineeProfileId], references: [id])
+
+  @@index([traineeProfileId])
+  @@map("work_experience")
+}
+
+model Interest {
+  id               String   @id @default(uuid())
+  traineeProfileId String
+  interestName     String
+  createdAt        DateTime @default(now())
+
+  traineeProfile TraineeProfile @relation(fields: [traineeProfileId], references: [id])
+
+  @@index([traineeProfileId])
+  @@map("interests")
+}
+
+model ExternalCertificate {
+  id               String   @id @default(uuid())
+  traineeProfileId String
+  title            String
+  issuer           String
+  issueDate        DateTime
+  documentUrl      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  traineeProfile TraineeProfile @relation(fields: [traineeProfileId], references: [id])
+
+  @@index([traineeProfileId])
+  @@map("certificates_external")
+}
+
+// ─── Skills & Competency Framework ───────────────────────────────────────────
+
+model Skill {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  competencySkills  CompetencySkill[]
+  courseSkills      CourseSkill[]
+  trainerExpertise  TrainerExpertise[]
+  knowledgeHub      KnowledgeHubItem[]
+
+  @@map("skills")
+}
+
+model Competency {
+  id          String   @id @default(uuid())
+  name        String
+  category    String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  competencySkills    CompetencySkill[]
+  traineeCompetencies TraineeCompetency[]
+
+  @@map("competencies")
+}
+
+model CompetencySkill {
+  competencyId String
+  skillId      String
+
+  competency Competency @relation(fields: [competencyId], references: [id])
+  skill      Skill      @relation(fields: [skillId], references: [id])
+
+  @@id([competencyId, skillId])
+  @@map("competency_skills")
+}
+
+model ProficiencyLevel {
+  id          String   @id @default(uuid())
+  levelNumber Int      @unique // 1-5
+  label       String   // Novice, Beginner, Intermediate, Advanced, Expert
+  createdAt   DateTime @default(now())
+
+  @@map("proficiency_levels")
+}
+
+model TraineeCompetency {
+  id               String   @id @default(uuid())
+  traineeProfileId String
+  competencyId     String
+  currentLevel     Int      @default(1)
+  requiredLevel    Int      @default(3)
+  targetLevel      Int      @default(3)
+  evidenceUrl      String?
+  assessmentScore  Decimal? @db.Decimal(5, 2)
+  lastAssessedAt   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  traineeProfile TraineeProfile  @relation(fields: [traineeProfileId], references: [id])
+  competency     Competency      @relation(fields: [competencyId], references: [id])
+  skillGaps      SkillGapAnalysis[]
+
+  @@unique([traineeProfileId, competencyId])
+  @@index([traineeProfileId])
+  @@index([competencyId])
+  @@map("trainee_competencies")
+}
+
+model SkillGapAnalysis {
+  id                  String            @id @default(uuid())
+  traineeCompetencyId String
+  gapValue            Int
+  gapClassification   GapClassification
+  computedAt          DateTime          @default(now())
+
+  traineeCompetency TraineeCompetency @relation(fields: [traineeCompetencyId], references: [id])
+
+  @@index([traineeCompetencyId])
+  @@index([gapClassification])
+  @@map("skill_gap_analysis")
+}
+
+enum GapClassification {
+  none
+  low
+  medium
+  high
+  critical
+}
+
+model TrainerExpertise {
+  id               String   @id @default(uuid())
+  trainerProfileId String
+  skillId          String
+  proficiencyLevel Int
+  yearsExperience  Int      @default(0)
+  certified        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainerProfile TrainerProfile @relation(fields: [trainerProfileId], references: [id])
+  skill          Skill          @relation(fields: [skillId], references: [id])
+
+  @@unique([trainerProfileId, skillId])
+  @@index([trainerProfileId])
+  @@index([skillId])
+  @@map("trainer_expertise")
+}
+
+model TrainerAvailability {
+  id               String   @id @default(uuid())
+  trainerProfileId String
+  dayOfWeek        Int      // 0=Sunday, 6=Saturday
+  startTime        String   // HH:MM
+  endTime          String   // HH:MM
+  timezone         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trainerProfile TrainerProfile @relation(fields: [trainerProfileId], references: [id])
+
+  @@index([trainerProfileId])
+  @@map("trainer_availability")
+}
+
+// ─── Courses ─────────────────────────────────────────────────────────────────
+
+model CourseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses Course[]
+
+  @@map("course_categories")
+}
+
+model Course {
+  id              String       @id @default(uuid())
+  title           String
+  slug            String       @unique
+  description     String
+  thumbnailUrl    String?
+  trainerId       String
+  categoryId      String
+  difficulty      Difficulty   @default(beginner)
+  durationMinutes Int          @default(0)
+  status          CourseStatus @default(draft)
+  approvedById    String?
+  approvedAt      DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  trainer         TrainerProfile     @relation(fields: [trainerId], references: [id])
+  category        CourseCategory     @relation(fields: [categoryId], references: [id])
+  approvedBy      User?              @relation(fields: [approvedById], references: [id])
+  courseSkills    CourseSkill[]
+  prerequisites   CoursePrerequisite[] @relation("CoursePrereqs")
+  prerequisiteFor CoursePrerequisite[] @relation("PrerequisiteOf")
+  modules         CourseModule[]
+  enrollments     Enrollment[]
+  assessments     Assessment[]
+  certificates    Certificate[]
+  questionnaires  Questionnaire[]
+  trainerMatchScores TrainerMatchScore[] @relation("CourseMatchScores")
+
+  @@index([trainerId])
+  @@index([categoryId])
+  @@index([slug])
+  @@map("courses")
+}
+
+enum Difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum CourseStatus {
+  draft
+  pending_approval
+  published
+  archived
+}
+
+model CourseSkill {
+  courseId String
+  skillId  String
+
+  course Course @relation(fields: [courseId], references: [id])
+  skill  Skill  @relation(fields: [skillId], references: [id])
+
+  @@id([courseId, skillId])
+  @@map("course_skills")
+}
+
+model CoursePrerequisite {
+  courseId             String
+  prerequisiteCourseId String
+
+  course       Course @relation("CoursePrereqs", fields: [courseId], references: [id])
+  prerequisite Course @relation("PrerequisiteOf", fields: [prerequisiteCourseId], references: [id])
+
+  @@id([courseId, prerequisiteCourseId])
+  @@map("course_prerequisites")
+}
+
+model CourseModule {
+  id             String   @id @default(uuid())
+  courseId       String
+  title          String
+  sequenceOrder  Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  course    Course          @relation(fields: [courseId], references: [id])
+  resources CourseResource[]
+  progress  CourseProgress[]
+
+  @@index([courseId])
+  @@map("course_modules")
+}
+
+model CourseResource {
+  id          String       @id @default(uuid())
+  moduleId    String
+  type        ResourceType
+  title       String
+  storageKey  String
+  mimeType    String
+  sizeBytes   BigInt       @default(0)
+  uploadedById String
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  module     CourseModule @relation(fields: [moduleId], references: [id])
+  uploadedBy User         @relation(fields: [uploadedById], references: [id])
+
+  @@index([moduleId])
+  @@map("course_resources")
+}
+
+enum ResourceType {
+  pdf
+  ppt
+  pptx
+  doc
+  docx
+  video
+  audio
+  image
+}
+
+model Enrollment {
+  id              String           @id @default(uuid())
+  traineeId       String
+  courseId        String
+  status          EnrollmentStatus @default(started)
+  enrolledAt      DateTime         @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  trainee   TraineeProfile  @relation(fields: [traineeId], references: [id])
+  course    Course          @relation(fields: [courseId], references: [id])
+  progress  CourseProgress[]
+  certificate Certificate?
+
+  @@unique([traineeId, courseId])
+  @@index([traineeId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+enum EnrollmentStatus {
+  started
+  in_progress
+  completed
+  abandoned
+}
+
+model CourseProgress {
+  id             String         @id @default(uuid())
+  enrollmentId   String
+  moduleId       String
+  status         ProgressStatus @default(not_started)
+  progressPct    Int            @default(0)
+  lastAccessedAt DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  enrollment Enrollment  @relation(fields: [enrollmentId], references: [id])
+  module     CourseModule @relation(fields: [moduleId], references: [id])
+
+  @@unique([enrollmentId, moduleId])
+  @@index([enrollmentId])
+  @@map("course_progress")
+}
+
+enum ProgressStatus {
+  not_started
+  in_progress
+  completed
+}
+
+// ─── Assessment Engine ────────────────────────────────────────────────────────
+
+model Assessment {
+  id                  String         @id @default(uuid())
+  courseId            String?
+  subject             String
+  type                AssessmentType
+  timeLimitMinutes    Int?
+  passScorePct        Int            @default(60)
+  randomizeQuestions  Boolean        @default(true)
+  randomizeOptions    Boolean        @default(true)
+  createdById         String
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  course     Course?             @relation(fields: [courseId], references: [id])
+  createdBy  User                @relation(fields: [createdById], references: [id])
+  questions  AssessmentQuestion[]
+  attempts   AssessmentAttempt[]
+
+  @@index([courseId])
+  @@index([createdById])
+  @@map("assessments")
+}
+
+enum AssessmentType {
+  pre_test
+  post_test
+  module_quiz
+  final
+}
+
+model AssessmentQuestion {
+  id           String       @id @default(uuid())
+  assessmentId String
+  questionType QuestionType
+  questionText String
+  difficulty   Difficulty   @default(beginner)
+  points       Int          @default(1)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  assessment Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  options    QuestionOption[]
+  answers    AssessmentAnswer[]
+
+  @@index([assessmentId])
+  @@map("assessment_questions")
+}
+
+enum QuestionType {
+  single_mcq
+  multi_mcq
+  true_false
+}
+
+model QuestionOption {
+  id         String  @id @default(uuid())
+  questionId String
+  optionText String
+  isCorrect  Boolean @default(false)
+
+  question AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model AssessmentAttempt {
+  id             String   @id @default(uuid())
+  assessmentId   String
+  traineeId      String
+  startedAt      DateTime @default(now())
+  submittedAt    DateTime?
+  scorePct       Decimal? @db.Decimal(5, 2)
+  passed         Boolean?
+  attemptNumber  Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assessment Assessment       @relation(fields: [assessmentId], references: [id])
+  trainee    TraineeProfile   @relation(fields: [traineeId], references: [id])
+  answers    AssessmentAnswer[]
+
+  @@index([assessmentId])
+  @@index([traineeId])
+  @@map("assessment_attempts")
+}
+
+model AssessmentAnswer {
+  id                String   @id @default(uuid())
+  attemptId         String
+  questionId        String
+  selectedOptionIds String[]
+  isCorrect         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  attempt  AssessmentAttempt  @relation(fields: [attemptId], references: [id])
+  question AssessmentQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([attemptId])
+  @@map("assessment_answers")
+}
+
+model Questionnaire {
+  id          String    @id @default(uuid())
+  trainerId   String
+  title       String
+  deadlineAt  DateTime?
+  courseId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  trainer   TrainerProfile         @relation(fields: [trainerId], references: [id])
+  course    Course?                @relation(fields: [courseId], references: [id])
+  questions QuestionnaireQuestion[]
+  responses QuestionnaireResponse[]
+
+  @@index([trainerId])
+  @@map("questionnaires")
+}
+
+model QuestionnaireQuestion {
+  id               String       @id @default(uuid())
+  questionnaireId  String
+  questionText     String
+  questionType     QuestionType
+  createdAt        DateTime     @default(now())
+
+  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id])
+
+  @@index([questionnaireId])
+  @@map("questionnaire_questions")
+}
+
+model QuestionnaireResponse {
+  id               String   @id @default(uuid())
+  questionnaireId  String
+  traineeId        String
+  responseData     Json
+  submittedAt      DateTime @default(now())
+
+  questionnaire Questionnaire  @relation(fields: [questionnaireId], references: [id])
+  trainee       TraineeProfile @relation(fields: [traineeId], references: [id])
+
+  @@index([questionnaireId])
+  @@index([traineeId])
+  @@map("questionnaire_responses")
+}
+
+// ─── Trainer Matching ─────────────────────────────────────────────────────────
+
+model TrainerMatchScore {
+  id          String   @id @default(uuid())
+  traineeId   String?
+  courseId    String?
+  trainerId   String
+  matchScore  Decimal  @db.Decimal(5, 4)
+  reasons     Json     // JSONB array of human-readable explanation strings
+  computedAt  DateTime @default(now())
+
+  trainee TraineeProfile? @relation("TraineeMatchScores", fields: [traineeId], references: [id])
+  course  Course?         @relation("CourseMatchScores", fields: [courseId], references: [id])
+  trainer TrainerProfile  @relation("TrainerMatchScores", fields: [trainerId], references: [id])
+
+  @@index([traineeId])
+  @@index([courseId])
+  @@index([trainerId])
+  @@map("trainer_match_scores")
+}
+
+// ─── Certification ────────────────────────────────────────────────────────────
+
+model Certificate {
+  id                 String   @id @default(uuid())
+  enrollmentId       String   @unique
+  certificateNumber  String   @unique
+  traineeId          String
+  courseId           String
+  trainerId          String
+  issuedAt           DateTime @default(now())
+  qrPayloadUrl       String
+  verificationToken  String   @unique
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  enrollment    Enrollment     @relation(fields: [enrollmentId], references: [id])
+  trainee       TraineeProfile @relation(fields: [traineeId], references: [id])
+  course        Course         @relation(fields: [courseId], references: [id])
+  trainer       TrainerProfile @relation(fields: [trainerId], references: [id])
+  verifications CertificateVerification[]
+
+  @@index([traineeId])
+  @@index([courseId])
+  @@index([verificationToken])
+  @@map("certificates")
+}
+
+model CertificateVerification {
+  id            String   @id @default(uuid())
+  certificateId String
+  verifiedAt    DateTime @default(now())
+  verifierIp    String?
+
+  certificate Certificate @relation(fields: [certificateId], references: [id])
+
+  @@index([certificateId])
+  @@map("certificate_verifications")
+}
+
+// ─── Feedback, Notifications, Engagement ─────────────────────────────────────
+
+model Feedback {
+  id         String      @id @default(uuid())
+  traineeId  String
+  targetType FeedbackTarget
+  targetId   String
+  rating     Int         // 1-5
+  comment    String?
+  createdAt  DateTime    @default(now())
+
+  trainee TraineeProfile @relation(fields: [traineeId], references: [id])
+
+  @@index([traineeId])
+  @@index([targetType, targetId])
+  @@map("feedback")
+}
+
+enum FeedbackTarget {
+  course
+  trainer
+}
+
+model Rating {
+  id             String   @id @default(uuid())
+  trainerId      String   @unique
+  avgRating      Decimal  @db.Decimal(3, 2)
+  totalRatings   Int      @default(0)
+  recomputedAt   DateTime @default(now())
+
+  trainer TrainerProfile @relation(fields: [trainerId], references: [id])
+
+  @@map("ratings")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model Announcement {
+  id          String             @id @default(uuid())
+  createdById String
+  title       String
+  body        String
+  audience    AnnouncementAudience @default(all)
+  publishedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([createdById])
+  @@map("announcements")
+}
+
+enum AnnouncementAudience {
+  all
+  trainees
+  trainers
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  traineeId   String
+  title       String
+  description String
+  awardedAt   DateTime @default(now())
+  iconKey     String
+  createdById String?
+
+  trainee   TraineeProfile @relation(fields: [traineeId], references: [id])
+  createdBy User?          @relation(fields: [createdById], references: [id])
+
+  @@index([traineeId])
+  @@map("achievements")
+}
+
+// ─── Learning Paths & Knowledge Hub ──────────────────────────────────────────
+
+model LearningPath {
+  id              String   @id @default(uuid())
+  traineeId       String
+  generatedReason String?
+  createdAt       DateTime @default(now())
+
+  trainee TraineeProfile    @relation(fields: [traineeId], references: [id])
+  items   LearningPathItem[]
+
+  @@index([traineeId])
+  @@map("learning_paths")
+}
+
+model LearningPathItem {
+  id             String           @id @default(uuid())
+  learningPathId String
+  sequenceOrder  Int
+  itemType       LearningItemType
+  itemId         String
+  status         ProgressStatus   @default(not_started)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id])
+
+  @@index([learningPathId])
+  @@map("learning_path_items")
+}
+
+enum LearningItemType {
+  course
+  resource
+  assessment
+}
+
+model KnowledgeHubItem {
+  id           String    @id @default(uuid())
+  title        String
+  type         String
+  storageKey   String
+  category     String
+  tags         String[]
+  subject      String
+  skillId      String?
+  departmentId String?
+  uploadedById String
+  uploadDate   DateTime  @default(now())
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  skill        Skill?        @relation(fields: [skillId], references: [id])
+  department   Department?   @relation(fields: [departmentId], references: [id])
+  uploadedBy   User          @relation(fields: [uploadedById], references: [id])
+
+  @@index([skillId])
+  @@index([departmentId])
+  @@map("knowledge_hub_items")
+}
