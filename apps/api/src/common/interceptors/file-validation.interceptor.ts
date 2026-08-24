@@ -6,7 +6,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import * as fileType from 'file-type';
 
 @Injectable()
 export class FileValidationInterceptor implements NestInterceptor {
@@ -21,7 +20,8 @@ export class FileValidationInterceptor implements NestInterceptor {
         throw new BadRequestException('Invalid file type based on mimetype');
       }
 
-      const typeResult = await fileType.fromBuffer(file.buffer);
+      const { fileTypeFromBuffer } = await eval('import("file-type")');
+      const typeResult = await fileTypeFromBuffer(file.buffer);
       if (!typeResult || !this.allowedMimeTypes.includes(typeResult.mime)) {
         throw new BadRequestException('Invalid file magic bytes. File might be forged.');
       }

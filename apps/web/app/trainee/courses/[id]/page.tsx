@@ -28,11 +28,11 @@ export default function CourseDetailPage() {
   const handleEnroll = async () => {
     setIsEnrolling(true);
     try {
-      await api.post('/courses/enroll', { courseId: id });
+      await api.post('/courses/enrollments', { courseId: id });
       toast.success('Successfully enrolled in course!');
       router.push(`/trainee/courses/${id}/learn`);
     } catch (err: any) {
-      toast.error(err.message || 'Enrollment failed');
+      toast.error(err.response?.data?.message || err.message || 'Enrollment failed');
     } finally {
       setIsEnrolling(false);
     }

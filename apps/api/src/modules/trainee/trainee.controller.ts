@@ -11,7 +11,7 @@ import { CreateQualificationDto } from './dto/create-qualification.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('trainee')
-@Controller('trainee')
+@Controller('api/v1/trainee')
 
 export class TraineeController {
   constructor(private readonly traineeService: TraineeService) {}

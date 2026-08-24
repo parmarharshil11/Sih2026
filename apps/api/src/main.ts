@@ -9,7 +9,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   app.use(cookieParser());
   app.use(helmet());
-  app.setGlobalPrefix('api/v1');
+
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,

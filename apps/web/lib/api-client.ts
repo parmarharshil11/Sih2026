@@ -31,17 +31,27 @@ export async function apiRequest<T = any>(
 
   if (!response.ok) {
     let errorMessage = 'An error occurred';
-    let errorData = null;
+    let errorData: any = null;
     try {
       errorData = await response.json();
-      errorMessage = errorData.message || errorData.error || errorMessage;
+      if (typeof errorData?.error?.message === 'string') {
+        errorMessage = errorData.error.message;
+      } else if (typeof errorData?.message === 'string') {
+        errorMessage = errorData.message;
+      } else if (Array.isArray(errorData?.message)) {
+        errorMessage = errorData.message.join(', ');
+      } else if (typeof errorData?.error === 'string') {
+        errorMessage = errorData.error;
+      } else if (typeof errorData?.message === 'object') {
+        errorMessage = JSON.stringify(errorData.message);
+      }
     } catch {
       errorMessage = response.statusText || errorMessage;
     }
     throw new ApiError(response.status, errorMessage, errorData);
   }
 
-  if (response.status === 24) return {} as T;
+  if (response.status === 204) return {} as T;
 
   try {
     return await response.json();

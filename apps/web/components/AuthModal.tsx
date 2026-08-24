@@ -97,7 +97,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             >
               <option value="trainee">Trainee (Learner)</option>
               <option value="trainer">Trainer (Instructor)</option>
-              <option value="admin">Administrator</option>
             </select>
           </div>
         )}

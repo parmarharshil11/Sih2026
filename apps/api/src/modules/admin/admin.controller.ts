@@ -12,7 +12,7 @@ import { UpdateTrainerVerificationDto } from './dto/update-trainer-verification.
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
-@Controller('admin')
+@Controller('api/v1/admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

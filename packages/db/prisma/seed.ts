@@ -55,7 +55,7 @@ async function main() {
 
   // 2. Hash default password
   const defaultPassword = 'Password123!';
-  const passwordHash = await argon2.hash(defaultPassword, { type: argon2.argon2id });
+  const passwordHash = await argon2.hash(defaultPassword);
 
   // 3. Roles & Permissions
   console.log('🔐 Seeding Roles & Permissions...');

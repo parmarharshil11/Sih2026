@@ -33,11 +33,11 @@ export default function CoursePlayerPage() {
   const handleMarkComplete = async (moduleId: string) => {
     try {
       // Find active enrollment ID
-      const enrollments = await api.get('/courses/me/enrollments');
+      const enrollments = await api.get('/courses/enrollments/me');
       const enr = enrollments.find((e: any) => e.courseId === id);
 
       if (enr) {
-        await api.post(`/courses/me/enrollments/${enr.id}/progress`, {
+        await api.patch(`/courses/enrollments/${enr.id}/progress`, {
           moduleId,
           progressPct: 100,
         });

@@ -35,7 +35,7 @@ export default function AdminUsersPage() {
 
   const handleVerifyTrainer = async (trainerId: string, verificationStatus: string) => {
     try {
-      await api.patch(`/admin/trainers/${trainerId}/verify`, { verificationStatus });
+      await api.patch(`/admin/trainers/${trainerId}/verify`, { status: verificationStatus });
       toast.success(`Trainer verification status updated to ${verificationStatus}`);
       fetchUsers();
     } catch (err: any) {

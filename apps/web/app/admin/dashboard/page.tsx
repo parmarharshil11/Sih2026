@@ -22,7 +22,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/analytics/admin/overview').catch(() => null),
+      api.get('/analytics/admin-dashboard').catch(() => null),
       api.get('/analytics/critical-gap-feed').catch(() => []),
       api.get('/analytics/difficult-assessments').catch(() => []),
     ]).then(([ovData, feedData, quizData]) => {
