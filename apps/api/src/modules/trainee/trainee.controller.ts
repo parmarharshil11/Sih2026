@@ -1,5 +1,7 @@
 import { Controller, Get, Patch, Post, Body, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TraineeService } from './trainee.service';
 import { UpdateTraineeProfileDto } from './dto/update-trainee-profile.dto';
@@ -7,8 +9,10 @@ import { CreateInterestDto } from './dto/create-interest.dto';
 import { CreateWorkExperienceDto } from './dto/create-work-experience.dto';
 import { CreateQualificationDto } from './dto/create-qualification.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('trainee')
 @Controller('trainee')
+
 export class TraineeController {
   constructor(private readonly traineeService: TraineeService) {}
 
