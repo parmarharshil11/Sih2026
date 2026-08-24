@@ -254,6 +254,17 @@ export class CompetencyService {
     const gapClassification: GapClassification =
       gapValue >= 4 ? GapClassification.critical : classificationMap[gapValue];
 
+    const existing = await this.prisma.skillGapAnalysis.findFirst({
+      where: { traineeCompetencyId },
+    });
+
+    if (existing) {
+      return this.prisma.skillGapAnalysis.update({
+        where: { id: existing.id },
+        data: { gapValue, gapClassification, computedAt: new Date() },
+      });
+    }
+
     return this.prisma.skillGapAnalysis.create({
       data: { traineeCompetencyId, gapValue, gapClassification },
     });

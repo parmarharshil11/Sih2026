@@ -502,15 +502,7 @@ export class AssessmentService {
     assessment: any,
   ): Promise<void> {
     if (assessment.createdById !== userId) {
-      // Check if it's the trainer's own assessment via trainer profile
-      const trainer = await this.prisma.trainerProfile.findUnique({
-        where: { userId },
-      });
-      if (!trainer) throw new ForbiddenException('Access denied');
-      // If assessment was created by this trainer (userId = createdById), pass
-      if (assessment.createdById !== userId) {
-        throw new ForbiddenException('You do not own this assessment');
-      }
+      throw new ForbiddenException('You do not own this assessment');
     }
   }
 

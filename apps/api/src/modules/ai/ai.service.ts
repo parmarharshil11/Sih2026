@@ -145,7 +145,7 @@ export class AiService {
           slug: `ai-draft-${Date.now()}`,
           description: aiDescription,
           trainerId: trainerProfile.id,
-          categoryId: (await this._getDefaultCategoryId()),
+          categoryId: (await this._getDefaultCategoryId(tx)),
           difficulty: (dto.difficulty as Difficulty) || Difficulty.beginner,
           status: CourseStatus.draft,
           modules: {
@@ -173,10 +173,11 @@ export class AiService {
     });
   }
 
-  private async _getDefaultCategoryId(): Promise<string> {
-    let cat = await this.prisma.courseCategory.findFirst();
+  private async _getDefaultCategoryId(prismaClient?: any): Promise<string> {
+    const client = prismaClient || this.prisma;
+    let cat = await client.courseCategory.findFirst();
     if (!cat) {
-      cat = await this.prisma.courseCategory.create({ data: { name: 'Uncategorized (AI Draft)' } });
+      cat = await client.courseCategory.create({ data: { name: 'Uncategorized (AI Draft)' } });
     }
     return cat.id;
   }

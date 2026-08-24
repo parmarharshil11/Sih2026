@@ -200,6 +200,9 @@ export class CourseService {
     }
 
     const { skillIds, ...courseData } = dto;
+    if ('status' in courseData) {
+      delete (courseData as any).status;
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (skillIds !== undefined) {
@@ -262,6 +265,39 @@ export class CourseService {
       });
 
       return deletedCourse;
+    });
+  }
+
+  async archiveCourse(
+    userId: string,
+    courseId: string,
+    isAdmin = false,
+    ipAddress: string | null = null,
+  ): Promise<any> {
+    const course = await this._requireCourse(courseId);
+    if (!isAdmin) {
+      await this._assertCourseOwner(userId, course);
+    }
+    if (course.status !== CourseStatus.published) {
+      throw new BadRequestException('Only published courses can be archived');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const updatedCourse = await tx.course.update({
+        where: { id: courseId },
+        data: { status: CourseStatus.archived },
+      });
+
+      await this.auditService.log({
+        actorUserId: userId,
+        action: 'course.status_changed',
+        entityType: 'Course',
+        entityId: courseId,
+        ipAddress,
+        metadata: { newStatus: CourseStatus.archived },
+        prisma: tx,
+      });
+
+      return updatedCourse;
     });
   }
 

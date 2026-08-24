@@ -87,16 +87,29 @@ export class AuthService {
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
+    
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException('Account temporarily locked. Try again later.');
+    }
+
     if (user.status === 'suspended') throw new UnauthorizedException('Account suspended');
     if (user.status === 'pending') throw new UnauthorizedException('Account pending verification or approval');
 
     const passwordValid = await argon2.verify(user.passwordHash, dto.password);
-    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+    if (!passwordValid) {
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+      const lockData: any = { failedLoginAttempts: attempts };
+      if (attempts >= 5) {
+        lockData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+      }
+      await this.prisma.user.update({ where: { id: user.id }, data: lockData });
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
-        data: { lastLoginAt: new Date() },
+        data: { lastLoginAt: new Date(), failedLoginAttempts: 0, lockedUntil: null },
       });
 
       const accessToken = this.tokenService.generateAccessToken(user.id, user.email);
@@ -124,10 +137,13 @@ export class AuthService {
 
   async refresh(userId: string, jti: string, rawRefreshToken: string, res: any) {
     const stored = await this.prisma.refreshToken.findUnique({ where: { id: jti } });
-    if (!stored || stored.userId !== userId || stored.revoked) {
-      // Reuse detected — revoke all tokens for this user
+    if (!stored) throw new UnauthorizedException('Invalid refresh token');
+    if (stored.userId !== userId) throw new UnauthorizedException('Token ownership mismatch');
+    
+    if (stored.revoked) {
+      // Reuse detected — revoke all tokens for the STORED token's user (not the request param)
       await this.prisma.refreshToken.updateMany({
-        where: { userId },
+        where: { userId: stored.userId },
         data: { revoked: true },
       });
       throw new UnauthorizedException('Refresh token reuse detected. Please log in again.');

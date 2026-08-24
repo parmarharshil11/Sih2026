@@ -21,6 +21,7 @@ describe('AiService', () => {
   const mockTx: any = {
     course: { create: jest.fn() },
     auditLog: { create: jest.fn() },
+    courseCategory: { findFirst: jest.fn().mockResolvedValue({ id: 'cat-1' }), create: jest.fn().mockResolvedValue({ id: 'cat-1' }) },
   };
 
   beforeEach(async () => {

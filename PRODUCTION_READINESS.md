@@ -1,7 +1,7 @@
 # Capacity Connect — Production Readiness Guide
 
-> **Last Updated:** Phase 15 (Verification, Testing & Production Readiness)  
-> **Platform Phases Completed:** 1–15  
+> **Last Updated:** Phase 16c (Docs & Final Push)  
+> **Platform Phases Completed:** 1–16  
 
 ---
 
@@ -12,9 +12,10 @@
 3. [Database Setup & Seeding](#3-database-setup--seeding)
 4. [Health Check Endpoints](#4-health-check-endpoints)
 5. [Security Hardening Summary](#5-security-hardening-summary)
-6. [Running Tests](#6-running-tests)
-7. [Known Limitations & Out-of-Scope](#7-known-limitations--out-of-scope)
-8. [Demo Credentials (Seed Data)](#8-demo-credentials-seed-data)
+6. [Phase 16 Formal Checklist](#6-phase-16-formal-checklist)
+7. [Running Tests](#7-running-tests)
+8. [Known Limitations & Out-of-Scope](#8-known-limitations--out-of-scope)
+9. [Demo Credentials (Seed Data)](#9-demo-credentials-seed-data)
 
 ---
 
@@ -195,7 +196,28 @@ All security features implemented in **Phase 12**:
 
 ---
 
-## 6. Running Tests
+## 6. Phase 16 Formal Checklist
+
+This project underwent a comprehensive Phase 16 review and bug fix audit to guarantee production stability and algorithmic correctness.
+
+### Phase 16a: Security & Static Audit
+- ✅ Verified all `@Roles()` guards are properly applied across controllers.
+- ✅ Hardened `main.ts` with global interceptors, exception filters, and security headers.
+- ✅ Audited the entire codebase for hardcoded secrets, stripping accidental credentials.
+- ✅ Scrubbed `console.log` statements in favor of structured `Logger` service calls.
+
+### Phase 16b: Algorithmic & Business Logic Correctness
+- ✅ **MatchingService**: Fixed score weighting (`NaN` bug from `avgRating` schema mismatch) and safely clamped outputs.
+- ✅ **AuthService**: Implemented brute-force lockout (15-min lock after 5 failures) and fortified refresh token reuse tracking to only invalidate the victim's token family.
+- ✅ **CourseService**: Finalized state-machine logic by adding the missing `archiveCourse` endpoint and preventing arbitrary status bypass in the generic update DTO.
+- ✅ **CompetencyService**: Fixed unbounded row growth in gap computation by shifting from `create` to `upsert` logic.
+- ✅ **AnalyticsService**: Added safe optional-chaining to prevent null-crashes when aggregated entities (like deleted trainers) are missing from historical reports.
+- ✅ **AssessmentService**: Streamlined ownership validation paths to eliminate dead code.
+- ✅ **AiService**: Enforced transaction safety (`tx`) for default AI-category creation.
+
+---
+
+## 7. Running Tests
 
 ### Unit Tests (No Database Required)
 
@@ -236,7 +258,7 @@ npx turbo type-check test
 
 ---
 
-## 7. Known Limitations & Out-of-Scope
+## 8. Known Limitations & Out-of-Scope
 
 | Item | Status | Notes |
 |---|---|---|
@@ -249,7 +271,7 @@ npx turbo type-check test
 
 ---
 
-## 8. Demo Credentials (Seed Data)
+## 9. Demo Credentials (Seed Data)
 
 > [!WARNING]
 > These are **development-only** seed credentials. Change all passwords before deploying to production.

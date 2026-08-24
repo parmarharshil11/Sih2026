@@ -318,7 +318,7 @@ export class MatchingService {
 
     // 5. Rating: avg / 5
     const avgRating = trainer.ratings
-      ? Number(trainer.ratings.averageRating)
+      ? Number(trainer.ratings.avgRating)
       : 0;
     const ratingScore = avgRating / 5;
     if (avgRating >= 4) {
@@ -355,7 +355,9 @@ export class MatchingService {
       WEIGHTS.rating * ratingScore +
       WEIGHTS.certification * certScore;
 
-    return { score, reasons, breakdown };
+    const clampedScore = Math.min(1, Math.max(0, score));
+
+    return { score: clampedScore, reasons, breakdown };
   }
 
   /**
@@ -405,7 +407,7 @@ export class MatchingService {
     }
 
     const avgRating = trainer.ratings
-      ? Number(trainer.ratings.averageRating)
+      ? Number(trainer.ratings.avgRating)
       : 0;
     const ratingScore = avgRating / 5;
     if (avgRating >= 4) {
@@ -440,7 +442,9 @@ export class MatchingService {
       WEIGHTS.rating * ratingScore +
       WEIGHTS.certification * certScore;
 
-    return { score, reasons, breakdown };
+    const clampedScore = Math.min(1, Math.max(0, score));
+
+    return { score: clampedScore, reasons, breakdown };
   }
 }
 

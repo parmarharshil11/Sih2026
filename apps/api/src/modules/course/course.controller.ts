@@ -153,6 +153,20 @@ export class CourseController {
     return this.courseService.rejectCourse(userId, id, extractIp(req));
   }
 
+  @Patch('courses/:id/archive')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('trainer', 'admin')
+  @HttpCode(HttpStatus.OK)
+  archiveCourse(
+    @CurrentUser('id') userId: string,
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ): Promise<any> {
+    const isAdmin = user?.roles?.some((r: any) => r.name === 'admin');
+    return this.courseService.archiveCourse(userId, id, isAdmin, extractIp(req));
+  }
+
   // ─── Course Modules ───────────────────────────────────────────────────────────
 
   @Post('courses/:courseId/modules')

@@ -6,7 +6,7 @@ This document serves as the project memory to continue development across differ
 
 We are building a scalable, enterprise-grade learning and capacity-building platform (Capacity Connect) using a monorepo architecture.
 
-**Phases 1 through 15 have been FULLY completed.**
+**Phases 1 through 16 have been FULLY completed.**
 
 - **Phase 1 (Architecture):** Turborepo configured with Next.js (`apps/web`), NestJS (`apps/api`), Prisma (`packages/db`), and shared UI packages.
 - **Phase 2 (Database):** Full 40+ table Prisma schema implemented. Docker Compose setup running Postgres on port `5433` (or `5432`), Redis, and MinIO.
@@ -32,19 +32,19 @@ We are building a scalable, enterprise-grade learning and capacity-building plat
   - TypeScript typecheck passes with **0 errors**.
 - **Phase 16 (Final Production-Readiness Review):**
   - **Phase 16a (Audit):** Full repo audit via grep/static analysis for hardcoded secrets, `console.log` usage, RBAC guard coverage, and storage paths. Found and fixed RBAC bug in `TraineeController` and hardened `main.ts` logging. Documented in `docs/AUDIT_FINDINGS.md`. (COMPLETED)
-  - **Phase 16b (Business Logic Audit & Bug Fixes):** Audit the 8 core services for algorithmic correctness and invariant enforcement. (PENDING)
-    - `AuthService`: Suspend lockouts, refresh token rotation, single-use email tokens.
-    - `CourseService`: State machine transitions, trainer publishing limits, double-enrollment conflicts.
-    - `AssessmentService`: MCQ engine score calculation (server-side only), cheating/time-limit auto-fails.
-    - `CertificateService`: Idempotent issuance, UUIDv4 tokens, verify missing tokens safely.
-    - `CompetencyService`: Gap value math (`gap >= 0`), non-overlapping thresholds, upserting gaps.
-    - `MatchingService`: Signal weights sum to 1.0, NaN/0 handling, clamping scores [0,100], upserting scores.
-    - `AnalyticsService`: Divide-by-zero handling (`completionRate`), null-department handling.
-    - `AiService`: Hard-coded `CourseStatus.draft` status, read-only guarantees on AI gap explanation, no RBAC mutations.
-  - **Phase 16c (Docs & Final Push):** (PENDING)
-    - Write complete `README.md` with architecture, quick start, local setup, env vars, tests, and deployment notes.
-    - Update `PRODUCTION_READINESS.md` with a formal Phase 16 checklist.
-    - Perform final git commit (`docs: Phase 16c`) and push to `origin/master`.
+  - **Phase 16b (Business Logic Audit & Bug Fixes):** Audited and fixed 10 core service algorithmic bugs. (COMPLETED)
+    - `AuthService`: Implemented brute-force lockouts and fixed refresh token rotation family revokes.
+    - `CourseService`: Added `archiveCourse` endpoint and blocked status bypass in update payload.
+    - `AssessmentService`: Removed dead code in ownership validation logic.
+    - `CertificateService`: Verified idempotent issuance, UUIDv4 tokens, safe verify endpoint.
+    - `CompetencyService`: Shifted to `upsert` logic for gaps, resolving unbounded row bloat.
+    - `MatchingService`: Fixed `NaN` weighting bug caused by schema mismatch and added score clamps.
+    - `AnalyticsService`: Added safe optional chaining for trainer aggregation to prevent null-crashes.
+    - `AiService`: Enforced `tx` transactions in default AI-category provisioning.
+  - **Phase 16c (Docs & Final Push):** (COMPLETED)
+    - Wrote complete `README.md` with architecture, quick start, local setup, env vars, tests, and deployment notes.
+    - Updated `PRODUCTION_READINESS.md` with a formal Phase 16 checklist.
+    - Final repository state achieved.
 
 ## Build Status
 - `npx tsc --noEmit` in `apps/api` → ✅ 0 errors
@@ -64,7 +64,7 @@ We are building a scalable, enterprise-grade learning and capacity-building plat
 1. Run `docker compose up -d postgres redis minio` to ensure infrastructure is running.
 2. Run `npx prisma db seed` in `packages/db` to populate test data.
 3. Run `npm run dev` to start dev servers for both API and Web apps.
-4. All phases 1-15 are complete. The project is production-ready.
+4. All phases 1-16 are complete. The project is production-ready.
 
 ## Demo Credentials (from seed)
 - Admin: `admin@capacityconnect.org` / `Password123!`
