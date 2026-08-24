@@ -30,6 +30,21 @@ We are building a scalable, enterprise-grade learning and capacity-building plat
   - `apps/api/Dockerfile` and `apps/web/Dockerfile` added (multi-stage builds).
   - `apps/api/src/main.ts` updated with `setGlobalPrefix('api/v1')`.
   - TypeScript typecheck passes with **0 errors**.
+- **Phase 16 (Final Production-Readiness Review):**
+  - **Phase 16a (Audit):** Full repo audit via grep/static analysis for hardcoded secrets, `console.log` usage, RBAC guard coverage, and storage paths. Found and fixed RBAC bug in `TraineeController` and hardened `main.ts` logging. Documented in `docs/AUDIT_FINDINGS.md`. (COMPLETED)
+  - **Phase 16b (Business Logic Audit & Bug Fixes):** Audit the 8 core services for algorithmic correctness and invariant enforcement. (PENDING)
+    - `AuthService`: Suspend lockouts, refresh token rotation, single-use email tokens.
+    - `CourseService`: State machine transitions, trainer publishing limits, double-enrollment conflicts.
+    - `AssessmentService`: MCQ engine score calculation (server-side only), cheating/time-limit auto-fails.
+    - `CertificateService`: Idempotent issuance, UUIDv4 tokens, verify missing tokens safely.
+    - `CompetencyService`: Gap value math (`gap >= 0`), non-overlapping thresholds, upserting gaps.
+    - `MatchingService`: Signal weights sum to 1.0, NaN/0 handling, clamping scores [0,100], upserting scores.
+    - `AnalyticsService`: Divide-by-zero handling (`completionRate`), null-department handling.
+    - `AiService`: Hard-coded `CourseStatus.draft` status, read-only guarantees on AI gap explanation, no RBAC mutations.
+  - **Phase 16c (Docs & Final Push):** (PENDING)
+    - Write complete `README.md` with architecture, quick start, local setup, env vars, tests, and deployment notes.
+    - Update `PRODUCTION_READINESS.md` with a formal Phase 16 checklist.
+    - Perform final git commit (`docs: Phase 16c`) and push to `origin/master`.
 
 ## Build Status
 - `npx tsc --noEmit` in `apps/api` → ✅ 0 errors

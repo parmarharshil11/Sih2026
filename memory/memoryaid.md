@@ -29,6 +29,7 @@ Here is the essential context you need to seamlessly resume "vibe coding":
 - Phase 13: Next.js UI (Glassmorphism dark mode, all 3 role portals)
 - Phase 14: Realistic database seeder (seed.ts)
 - Phase 15: Unit tests (6 service specs), E2E tests (RBAC, course lifecycle, certificate), Dockerfiles, PRODUCTION_READINESS.md
+- Phase 16: Final Production-Readiness Review (16a static audit completed, 16b logic audit & 16c final docs pending)
 
 ## 4. Crucial Quirks & Rules (Read Carefully!)
 1. **Windows Environment**: The user is on Windows. Avoid PowerShell syntax errors.
