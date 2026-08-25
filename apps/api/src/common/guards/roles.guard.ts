@@ -22,10 +22,11 @@ export class RolesGuard implements CanActivate {
     // CRITICAL: roles resolved from DB record attached to request, never from client claim
     if (!user || !user.roles) throw new ForbiddenException('Access denied');
 
-    const hasRole = requiredRoles.some((role) =>
-      user.roles.map((r: any) => r.name).includes(role),
-    );
-    if (!hasRole) throw new ForbiddenException('Insufficient role');
+    const userRoles = user.roles.map((r: any) => r.name);
+    const hasRole = requiredRoles.some((role) => userRoles.includes(role));
+    const isAdmin = userRoles.includes('admin');
+
+    if (!hasRole && !isAdmin) throw new ForbiddenException('Insufficient role');
     return true;
   }
 }
