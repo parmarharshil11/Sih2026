@@ -39,11 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password });
-    // In our backend implementation, login returns message and sets cookies/tokens
-    // Mock decoded roles for demo session management
-    let roles = ['trainee'];
-    if (email.includes('admin')) roles = ['admin'];
-    else if (email.includes('trainer')) roles = ['trainer'];
+    
+    const roles = res.roles || ['trainee'];
 
     const session: UserSession = {
       id: res.userId || 'user-' + Date.now(),

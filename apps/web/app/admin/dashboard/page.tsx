@@ -48,21 +48,21 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
         <StatCard
           title="Total Platform Users"
-          value={overview?.totalUsers || 21}
+          value={(overview?.users?.trainees || 0) + (overview?.users?.trainers || 0)}
           subtitle="Registered accounts"
           icon={Users}
           color="blue"
         />
         <StatCard
           title="Published Courses"
-          value={overview?.publishedCourses || 8}
+          value={overview?.courses?.published || 0}
           subtitle="Capacity modules"
           icon={BookOpen}
           color="purple"
         />
         <StatCard
           title="Overall Pass Rate"
-          value={`${overview?.overallPassRate || 85}%`}
+          value={`${Math.round(overview?.enrollments?.completionRate || 0)}%`}
           subtitle="Assessment efficacy"
           icon={Award}
           color="emerald"

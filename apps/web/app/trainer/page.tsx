@@ -8,13 +8,18 @@ import { BookOpen, Users, PlusCircle, Sparkles, FileText, CheckCircle } from 'lu
 
 export default function TrainerDashboard() {
   const [courses, setCourses] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .get('/courses?limit=10')
-      .then((res) => setCourses(res.data || []))
-      .catch(() => setCourses([]))
+    Promise.all([
+      api.get('/courses?limit=10').catch(() => ({ data: [] })),
+      api.get('/trainer/profile').catch(() => null),
+    ])
+      .then(([coursesRes, profileRes]) => {
+        setCourses(coursesRes.data || []);
+        setProfile(profileRes);
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -57,14 +62,14 @@ export default function TrainerDashboard() {
         />
         <StatCard
           title="Active Students"
-          value="48"
+          value={courses.reduce((acc, course) => acc + (course._count?.enrollments || 0), 0)}
           subtitle="Enrolled trainees"
           icon={Users}
           color="blue"
         />
         <StatCard
           title="Average Rating"
-          value="4.9 / 5.0"
+          value={profile?.trainerRatingAvg ? `${profile.trainerRatingAvg.toFixed(1)} / 5.0` : 'N/A'}
           subtitle="Trainee satisfaction"
           icon={Sparkles}
           color="amber"

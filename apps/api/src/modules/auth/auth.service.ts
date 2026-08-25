@@ -38,13 +38,16 @@ export class AuthService {
 
     const emailVerificationToken = uuidv4();
 
+    const isDev = process.env.NODE_ENV !== 'production';
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: dto.email,
           passwordHash,
-          status: 'pending',
-          emailVerificationToken,
+          status: isDev ? 'active' : 'pending',
+          emailVerifiedAt: isDev ? new Date() : null,
+          emailVerificationToken: isDev ? null : emailVerificationToken,
           userRoles: { create: { roleId: role.id } },
         },
       });
@@ -55,9 +58,13 @@ export class AuthService {
         entityType: 'User',
         entityId: user.id,
         ipAddress,
-        metadata: { role: dto.role },
+        metadata: { role: dto.role, autoActivated: isDev },
         prisma: tx,
       });
+
+      if (isDev) {
+        return { message: 'Registration successful. Auto-activated for development.', userId: user.id };
+      }
 
       // TODO: send verification email with emailVerificationToken
       return { message: 'Registration successful. Please verify your email.', userId: user.id };
@@ -84,6 +91,7 @@ export class AuthService {
   async login(dto: LoginDto, res: any, ipAddress: string | null = null) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      include: { userRoles: { include: { role: true } } },
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -131,7 +139,11 @@ export class AuthService {
       });
 
       this.tokenService.setTokenCookies(res, accessToken, refreshToken);
-      return { message: 'Login successful' };
+      
+      const roles = user.userRoles.map((ur) => ur.role.name);
+      
+      // Also return tokens in response body so frontend clients (SPA) can persist them
+      return { message: 'Login successful', accessToken, userId: user.id, roles };
     });
   }
 

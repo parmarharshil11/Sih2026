@@ -14,7 +14,7 @@ export default function CourseCatalogPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/courses/categories').then((res) => setCategories(res)).catch(() => {});
+    api.get('/courses/categories').then((res) => setCategories(res?.data || res || [])).catch(() => {});
   }, []);
 
   useEffect(() => {

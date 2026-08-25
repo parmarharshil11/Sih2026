@@ -33,4 +33,16 @@ export class AnalyticsController {
   getCoursesReport(): Promise<any> {
     return this.analyticsService.getCoursesReport();
   }
+
+  @Get('critical-gap-feed')
+  @Roles('admin')
+  getCriticalGapFeed(): Promise<any> {
+    return this.analyticsService.getCriticalGapFeed();
+  }
+
+  @Get('difficult-assessments')
+  @Roles('admin')
+  getDifficultAssessments(): Promise<any> {
+    return this.analyticsService.getDifficultAssessments();
+  }
 }

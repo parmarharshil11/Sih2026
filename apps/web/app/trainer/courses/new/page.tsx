@@ -20,8 +20,9 @@ export default function CourseBuilderPage() {
 
   useEffect(() => {
     api.get('/courses/categories').then((res) => {
-      setCategories(res || []);
-      if (res && res.length > 0) setCategoryId(res[0].id);
+      const list = res?.data || res || [];
+      setCategories(list);
+      if (list.length > 0) setCategoryId(list[0].id);
     });
   }, []);
 

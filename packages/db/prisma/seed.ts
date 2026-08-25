@@ -1,5 +1,5 @@
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgresql://ccuser:ccpassword@localhost:5432/capacityconnect';
+  process.env.DATABASE_URL = 'postgresql://ccuser:ccpassword@localhost:5433/capacityconnect';
 }
 
 import { PrismaClient, UserStatus, VerificationStatus, CourseStatus, Difficulty, ResourceType, EnrollmentStatus, ProgressStatus, AssessmentType, QuestionType, GapClassification } from '../generated/client/index.js';

@@ -28,7 +28,7 @@ export default function CourseDetailPage() {
   const handleEnroll = async () => {
     setIsEnrolling(true);
     try {
-      await api.post('/courses/enrollments', { courseId: id });
+      await api.post('/enrollments', { courseId: id });
       toast.success('Successfully enrolled in course!');
       router.push(`/trainee/courses/${id}/learn`);
     } catch (err: any) {

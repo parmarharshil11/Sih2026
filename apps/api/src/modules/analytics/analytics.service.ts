@@ -168,6 +168,70 @@ export class AnalyticsService {
   }
 
   /**
+   * Critical gap feed - trainees with gap classification 'critical'
+   */
+  async getCriticalGapFeed(): Promise<any> {
+    const gaps = await this.prisma.skillGapAnalysis.findMany({
+      where: { gapClassification: 'critical' },
+      include: {
+        traineeCompetency: {
+          include: {
+            competency: { select: { name: true } },
+            traineeProfile: {
+              include: { user: { select: { email: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { gapValue: 'desc' },
+      take: 10,
+    });
+
+    return gaps.map((g) => ({
+      id: g.id,
+      gapValue: g.gapValue,
+      gapClassification: g.gapClassification,
+      trainee: {
+        user: { email: g.traineeCompetency.traineeProfile.user.email },
+      },
+      traineeCompetency: {
+        competency: { name: g.traineeCompetency.competency.name },
+      },
+    }));
+  }
+
+  /**
+   * Difficult assessments - assessments where pass rate < 50%
+   */
+  async getDifficultAssessments(): Promise<any> {
+    const assessments = await this.prisma.assessment.findMany({
+      include: {
+        course: { select: { title: true } },
+        attempts: {
+          where: { submittedAt: { not: null } },
+          select: { passed: true },
+        },
+      },
+    });
+
+    return assessments
+      .map((a) => {
+        const submitted = a.attempts.length;
+        const passed = a.attempts.filter((at) => at.passed).length;
+        const passRatePct = submitted > 0 ? Math.round((passed / submitted) * 100) : null;
+        return {
+          id: a.id,
+          subject: a.subject,
+          course: a.course,
+          passRatePct,
+          submitted,
+        };
+      })
+      .filter((a) => a.passRatePct !== null && a.passRatePct < 50)
+      .sort((a, b) => (a.passRatePct ?? 0) - (b.passRatePct ?? 0));
+  }
+
+  /**
    * Reports - Courses (returns JSON suitable for CSV export on the client)
    */
   async getCoursesReport(): Promise<any> {

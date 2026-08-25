@@ -14,7 +14,7 @@ export default function TraineeDashboard() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/courses/enrollments/me').catch(() => []),
+      api.get('/enrollments/me').catch(() => []),
       api.get('/courses?limit=3').catch(() => ({ data: [] })),
     ]).then(([enrData, courseData]) => {
       setEnrollments(enrData || []);
