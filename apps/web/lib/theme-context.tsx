@@ -33,14 +33,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  // Prevent hydration mismatch by not rendering anything theme-dependent until mounted
-  if (!mounted) {
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
-
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
+      <div style={!mounted ? { visibility: 'hidden' } : undefined}>
+        {children}
+      </div>
     </ThemeContext.Provider>
   );
 }
