@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserStatus, VerificationStatus } from '@repo/db';
 import { AuditService } from '../../common/services/audit.service';
@@ -22,6 +22,7 @@ export class AdminService {
           email: true,
           status: true,
           createdAt: true,
+          userRoles: { select: { role: { select: { name: true } } } },
           traineeProfile: { select: { id: true } },
           trainerProfile: { select: { id: true, verificationStatus: true } },
         }
@@ -41,9 +42,23 @@ export class AdminService {
   }
 
   async updateUserStatus(id: string, status: UserStatus, adminId: string, ipAddress: string | null = null) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { userRoles: { include: { role: true } } },
+    });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // Prevent self-suspension
+    if (id === adminId && status === 'suspended') {
+      throw new ForbiddenException('Administrators cannot suspend their own account');
+    }
+
+    // Prevent suspending another admin
+    const isAdmin = user.userRoles.some((ur) => ur.role.name === 'admin');
+    if (isAdmin && status === 'suspended') {
+      throw new ForbiddenException('Administrator accounts cannot be suspended');
     }
 
     return this.prisma.$transaction(async (tx) => {

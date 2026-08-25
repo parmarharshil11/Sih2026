@@ -34,7 +34,7 @@ export function Navbar() {
               <Layers className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent brand-title">
                 Capacity Connect
               </span>
               <span className="text-[10px] tracking-wider uppercase font-semibold text-blue-400 -mt-1">

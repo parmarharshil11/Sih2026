@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { Users, CheckCircle, XCircle, ShieldCheck, UserCheck } from 'lucide-react';
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -60,9 +62,15 @@ export default function AdminUsersPage() {
           {user.userRoles?.map((ur: any, idx: number) => (
             <span
               key={idx}
-              className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20"
+              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                ur.role?.name === 'admin'
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  : ur.role?.name === 'trainer'
+                  ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                  : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+              }`}
             >
-              {ur.role?.name || 'User'}
+              {ur.role?.name || 'user'}
             </span>
           ))}
         </div>
@@ -86,34 +94,45 @@ export default function AdminUsersPage() {
     },
     {
       header: 'Actions',
-      accessor: (user: any) => (
-        <div className="flex items-center gap-2">
-          {user.status === 'active' ? (
-            <button
-              onClick={() => handleUpdateStatus(user.id, 'suspended')}
-              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
-            >
-              Suspend
-            </button>
-          ) : (
-            <button
-              onClick={() => handleUpdateStatus(user.id, 'active')}
-              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
-            >
-              Activate
-            </button>
-          )}
+      accessor: (user: any) => {
+        const isAdminUser = user.userRoles?.some((ur: any) => ur.role?.name === 'admin');
+        const isSelf = user.id === currentUser?.id;
 
-          {user.trainerProfile && (
-            <button
-              onClick={() => handleVerifyTrainer(user.trainerProfile.id, 'verified')}
-              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-colors"
-            >
-              Verify Trainer
-            </button>
-          )}
-        </div>
-      ),
+        return (
+          <div className="flex items-center gap-2">
+            {isAdminUser || isSelf ? (
+              // Admin accounts and the current session user cannot be suspended
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                <ShieldCheck className="w-3 h-3" />
+                {isSelf ? 'You' : 'Admin'}
+              </span>
+            ) : user.status === 'active' ? (
+              <button
+                onClick={() => handleUpdateStatus(user.id, 'suspended')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
+              >
+                Suspend
+              </button>
+            ) : (
+              <button
+                onClick={() => handleUpdateStatus(user.id, 'active')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+              >
+                Activate
+              </button>
+            )}
+
+            {user.trainerProfile && !isAdminUser && (
+              <button
+                onClick={() => handleVerifyTrainer(user.trainerProfile.id, 'verified')}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-colors"
+              >
+                Verify Trainer
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
