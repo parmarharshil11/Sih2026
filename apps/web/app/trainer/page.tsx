@@ -70,7 +70,7 @@ export default function TrainerDashboard() {
         />
         <StatCard
           title="Average Rating"
-          value={profile?.trainerRatingAvg ? `${profile.trainerRatingAvg.toFixed(1)} / 5.0` : 'N/A'}
+          value={profile?.trainerRatingAvg ? `${Number(profile.trainerRatingAvg).toFixed(1)} / 5.0` : 'N/A'}
           subtitle="Trainee satisfaction"
           icon={Sparkles}
           color="amber"
