@@ -12,7 +12,7 @@ import { LogoutConfirmModal } from './LogoutConfirmModal';
 
 export function Navbar() {
   const { user, isLoggingOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, isPortal } = useTheme();
   const searchParams = useSearchParams();
   
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -83,13 +83,15 @@ export function Navbar() {
                 >
                   <User className="w-3.5 h-3.5" /> Portal
                 </Link>
-                <button
-                  onClick={toggleTheme}
-                  className="p-2 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                  title="Toggle Theme"
-                >
-                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
+                {isPortal && (
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                    title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                  >
+                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  </button>
+                )}
                 <button
                   onClick={() => setIsLogoutOpen(true)}
                   disabled={isLoggingOut}

@@ -32,7 +32,7 @@ export default function LandingPage() {
           <span>Industrial Capacity Building & LMS Platform</span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight max-w-5xl leading-[1.1] mb-6">
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight max-w-5xl leading-[1.1] mb-6 text-white">
           Automate Competency Growth with{' '}
           <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
             AI-Driven Learning
