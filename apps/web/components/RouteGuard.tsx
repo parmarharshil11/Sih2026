@@ -19,14 +19,14 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
       if (!user) {
         // Redirect to landing page with a query param to trigger auth modal
         router.push('/?auth=true');
-      } else if (allowedRoles && !allowedRoles.some(role => user.roles.includes(role))) {
-        // Redirect to home if they don't have the right role
+      } else if (allowedRoles && !allowedRoles.some(role => user.roles.includes(role)) && !user.roles.includes('admin')) {
+        // Redirect to home if they don't have the right role and aren't an admin
         router.push('/');
       }
     }
   }, [user, isLoading, router, allowedRoles]);
 
-  if (isLoading || !user || (allowedRoles && !allowedRoles.some(role => user.roles.includes(role)))) {
+  if (isLoading || !user || (allowedRoles && !allowedRoles.some(role => user.roles.includes(role)) && !user.roles.includes('admin'))) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-4rem)]">
         <Spinner size="lg" label="Verifying access..." />
