@@ -50,14 +50,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Prevent hydration mismatch by not rendering anything theme-dependent until mounted
-  if (!mounted) {
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
-
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, isPortal }}>
-      {children}
+      <div style={!mounted ? { visibility: 'hidden' } : undefined}>
+        {children}
+      </div>
     </ThemeContext.Provider>
   );
 }
