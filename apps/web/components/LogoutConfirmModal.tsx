@@ -13,6 +13,11 @@ interface LogoutConfirmModalProps {
 export function LogoutConfirmModal({ isOpen, onClose }: LogoutConfirmModalProps) {
   const { logout, isLoggingOut } = useAuth();
 
+  const handleLogout = async () => {
+    await logout();
+    onClose();
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Sign Out">
       <div className="space-y-6">
@@ -29,7 +34,7 @@ export function LogoutConfirmModal({ isOpen, onClose }: LogoutConfirmModalProps)
             Cancel
           </button>
           <button
-            onClick={logout}
+            onClick={handleLogout}
             disabled={isLoggingOut}
             className="px-4 py-2 rounded-xl font-semibold text-sm bg-rose-600 text-white hover:bg-rose-500 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
