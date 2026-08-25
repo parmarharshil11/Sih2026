@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StatCard } from '@/components/StatCard';
+import { SkeletonCard } from '@/components/SkeletonCard';
 import { api } from '@/lib/api-client';
 import { BookOpen, Users, PlusCircle, Sparkles, FileText, CheckCircle } from 'lucide-react';
 
@@ -80,10 +81,10 @@ export default function TrainerDashboard() {
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-white">Authored Course Modules</h2>
         {isLoading ? (
-          <div className="glass-card p-8 rounded-2xl text-center text-slate-400">
-            Loading course portfolio...
+          <div className="grid grid-cols-1 gap-4">
+            <SkeletonCard count={3} />
           </div>
-        ) : (
+        ) : courses.length > 0 ? (
           <div className="space-y-3">
             {courses.map((course) => (
               <div
@@ -106,6 +107,10 @@ export default function TrainerDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="glass-card p-8 rounded-2xl text-center text-slate-400 text-sm">
+            You haven't authored any courses yet.
           </div>
         )}
       </div>

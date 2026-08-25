@@ -1,16 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { ShieldCheck, User, LogOut, QrCode, BookOpen, Layers, Award, LayoutDashboard } from 'lucide-react';
+import { useTheme } from '@/lib/theme-context';
+import { ShieldCheck, User, LogOut, QrCode, BookOpen, Layers, Award, LayoutDashboard, Loader2, Moon, Sun } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { QRScannerModal } from './QRScannerModal';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, isLoggingOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const searchParams = useSearchParams();
+  
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('auth') === 'true') {
+      setIsAuthOpen(true);
+    }
+  }, [searchParams]);
 
   return (
     <>
@@ -71,11 +84,19 @@ export function Navbar() {
                   <User className="w-3.5 h-3.5" /> Portal
                 </Link>
                 <button
-                  onClick={logout}
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  onClick={toggleTheme}
+                  className="p-2 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                  title="Toggle Theme"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => setIsLogoutOpen(true)}
+                  disabled={isLoggingOut}
+                  className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
                   title="Log Out"
                 >
-                  <LogOut className="w-4 h-4" />
+                  {isLoggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
                 </button>
               </div>
             ) : (
@@ -92,6 +113,7 @@ export function Navbar() {
 
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
       <QRScannerModal isOpen={isQROpen} onClose={() => setIsQROpen(false)} />
+      <LogoutConfirmModal isOpen={isLogoutOpen} onClose={() => setIsLogoutOpen(false)} />
     </>
   );
 }

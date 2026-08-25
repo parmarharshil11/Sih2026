@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api-client';
 import { Award, QrCode, ExternalLink, Calendar, BookOpen } from 'lucide-react';
+import { Spinner } from '@/components/Spinner';
 
 export default function CertificateVaultPage() {
   const [certificates, setCertificates] = useState<any[]>([]);
@@ -29,8 +30,8 @@ export default function CertificateVaultPage() {
       </div>
 
       {isLoading ? (
-        <div className="glass-card p-12 rounded-3xl text-center text-slate-400">
-          Loading certificate vault...
+        <div className="py-12">
+          <Spinner size="lg" label="Loading certificate vault..." />
         </div>
       ) : certificates.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -3,15 +3,18 @@
 import React from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
+import { RouteGuard } from '@/components/RouteGuard';
 
 export default function TrainerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col bg-[#0b0f19] text-slate-100">
-      <Navbar />
-      <div className="flex flex-1 max-w-7xl mx-auto w-full">
-        <Sidebar role="trainer" />
-        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">{children}</main>
+    <RouteGuard allowedRoles={['trainer', 'admin']}>
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex flex-1 max-w-7xl mx-auto w-full">
+          <Sidebar role="trainer" />
+          <main className="flex-1 p-6 lg:p-8 overflow-y-auto">{children}</main>
+        </div>
       </div>
-    </div>
+    </RouteGuard>
   );
 }

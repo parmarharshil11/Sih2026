@@ -4,26 +4,32 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StatCard } from '@/components/StatCard';
 import { CourseCard } from '@/components/CourseCard';
+import { SkeletonCard } from '@/components/SkeletonCard';
 import { api } from '@/lib/api-client';
 import { BookOpen, Award, TrendingUp, Users, ArrowRight, BrainCircuit, Sparkles } from 'lucide-react';
 
 export default function TraineeDashboard() {
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/enrollments/me').catch(() => []),
       api.get('/courses?limit=3').catch(() => ({ data: [] })),
-    ]).then(([enrData, courseData]) => {
+      api.get('/analytics/trainee-dashboard').catch(() => null),
+    ]).then(([enrData, courseData, statData]) => {
       setEnrollments(enrData || []);
       setCourses(courseData.data || []);
+      setStats(statData);
       setIsLoading(false);
     });
   }, []);
 
   const completedCount = enrollments.filter((e) => e.status === 'completed').length;
+  const currentLvl = stats?.competencyStats?.avgCurrentLevel?.toFixed(1) || '0.0';
+  const reqLvl = stats?.competencyStats?.avgRequiredLevel?.toFixed(1) || '0.0';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -54,23 +60,23 @@ export default function TraineeDashboard() {
         />
         <StatCard
           title="Competency Level"
-          value="Level 3.5"
+          value={`Level ${currentLvl}`}
           subtitle="Average proficiency"
           icon={TrendingUp}
           color="purple"
-          trend="+1.2 Improvement"
+          trend={`Target Level ${reqLvl}`}
         />
       </div>
 
-      {/* Skill Gap Analysis & AI AI Assistance Banner */}
+      {/* Skill Gap Analysis & AI Assistance Banner */}
       <div className="glass-card rounded-3xl p-6 border border-blue-500/30 bg-gradient-to-r from-blue-950/40 via-indigo-950/20 to-slate-900 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30">
             <BrainCircuit className="w-4 h-4" /> Skill Gap Target
           </div>
-          <h3 className="text-xl font-bold text-white">Cloud Architecture & Cyber Defense</h3>
+          <h3 className="text-xl font-bold text-white">Target Assessment</h3>
           <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-            Your current baseline is Level 2 (Novice). Completing recommended courses will bridge your gap to Level 4 (Advanced).
+            Your current baseline is Level {currentLvl}. Completing recommended courses will bridge your overall gap to Level {reqLvl}.
           </p>
         </div>
         <Link
@@ -91,8 +97,8 @@ export default function TraineeDashboard() {
         </div>
 
         {isLoading ? (
-          <div className="glass-card p-8 rounded-2xl text-center text-slate-400 text-sm">
-            Loading course workspace...
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <SkeletonCard count={2} />
           </div>
         ) : enrollments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

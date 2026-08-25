@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from './api-client';
 
 export interface UserSession {
@@ -12,9 +13,10 @@ export interface UserSession {
 interface AuthContextType {
   user: UserSession | null;
   isLoading: boolean;
+  isLoggingOut: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, role: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasRole: (role: string) => boolean;
 }
 
@@ -23,6 +25,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // Restore session from localStorage if present
@@ -53,17 +57,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (res.accessToken) {
       localStorage.setItem('access_token', res.accessToken);
     }
+
+    // Role-based redirect
+    if (roles.includes('admin')) {
+      router.push('/admin/dashboard');
+    } else if (roles.includes('trainer')) {
+      router.push('/trainer');
+    } else {
+      router.push('/trainee');
+    }
   };
 
   const register = async (email: string, password: string, role: string) => {
     await api.post('/auth/register', { email, password, role });
   };
 
-  const logout = () => {
-    api.post('/auth/logout').catch(() => {});
-    setUser(null);
-    localStorage.removeItem('user_session');
-    localStorage.removeItem('access_token');
+  const logout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      // Ignore errors on logout
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user_session');
+      localStorage.removeItem('access_token');
+      setIsLoggingOut(false);
+      router.push('/');
+    }
   };
 
   const hasRole = (role: string) => {
@@ -71,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, isLoading, isLoggingOut, login, register, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

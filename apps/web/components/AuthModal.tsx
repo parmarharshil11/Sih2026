@@ -26,6 +26,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (isRegister) {
         await register(email, password, role);
         toast.success('Registration successful! Signing you in...');
+        await new Promise((resolve) => setTimeout(resolve, 500));
         await login(email, password);
       } else {
         await login(email, password);

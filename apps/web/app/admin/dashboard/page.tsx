@@ -18,6 +18,7 @@ export default function AdminDashboardPage() {
   const [overview, setOverview] = useState<any>(null);
   const [criticalFeed, setCriticalFeed] = useState<any[]>([]);
   const [difficultQuizzes, setDifficultQuizzes] = useState<any[]>([]);
+  const [heatmapData, setHeatmapData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -25,13 +26,20 @@ export default function AdminDashboardPage() {
       api.get('/analytics/admin-dashboard').catch(() => null),
       api.get('/analytics/critical-gap-feed').catch(() => []),
       api.get('/analytics/difficult-assessments').catch(() => []),
-    ]).then(([ovData, feedData, quizData]) => {
+      api.get('/analytics/heatmap').catch(() => []),
+    ]).then(([ovData, feedData, quizData, htData]) => {
       setOverview(ovData);
       setCriticalFeed(feedData || []);
       setDifficultQuizzes(quizData || []);
+      setHeatmapData(htData || []);
       setIsLoading(false);
     });
   }, []);
+
+  // Compute unique skills for the heatmap header
+  const allSkills = Array.from(
+    new Set(heatmapData.flatMap((dept) => dept.skills.map((s: any) => s.skill)))
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -69,7 +77,7 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Critical Gap Alerts"
-          value={criticalFeed.length || 3}
+          value={criticalFeed.length}
           subtitle="Urgent intervention needed"
           icon={AlertTriangle}
           color="rose"
@@ -83,44 +91,63 @@ export default function AdminDashboardPage() {
             <Flame className="w-5 h-5 text-amber-400" />
             <h2 className="text-xl font-bold text-white">Department Competency Heatmap</h2>
           </div>
-          <span className="text-xs font-semibold text-slate-400">Department $\times$ Skill Matrix</span>
+          <span className="text-xs font-semibold text-slate-400">Department &times; Skill Matrix</span>
         </div>
 
         <div className="overflow-x-auto pt-2">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-900/80 font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
-              <tr>
-                <th className="px-4 py-3">Department</th>
-                <th className="px-4 py-3">Cloud Architecture</th>
-                <th className="px-4 py-3">Full-Stack Engineering</th>
-                <th className="px-4 py-3">Data Analytics</th>
-                <th className="px-4 py-3">Cyber Defense</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-semibold">
-              <tr>
-                <td className="px-4 py-3 text-white font-bold">Engineering</td>
-                <td className="px-4 py-3 text-emerald-400 bg-emerald-500/10">Level 4.2 (Advanced)</td>
-                <td className="px-4 py-3 text-emerald-400 bg-emerald-500/10">Level 4.0 (Advanced)</td>
-                <td className="px-4 py-3 text-amber-400 bg-amber-500/10">Level 2.8 (Intermediate)</td>
-                <td className="px-4 py-3 text-blue-400 bg-blue-500/10">Level 3.5 (Intermediate)</td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3 text-white font-bold">Finance</td>
-                <td className="px-4 py-3 text-rose-400 bg-rose-500/10">Level 1.5 (Novice)</td>
-                <td className="px-4 py-3 text-rose-400 bg-rose-500/10">Level 1.8 (Novice)</td>
-                <td className="px-4 py-3 text-emerald-400 bg-emerald-500/10">Level 4.5 (Expert)</td>
-                <td className="px-4 py-3 text-amber-400 bg-amber-500/10">Level 2.5 (Beginner)</td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3 text-white font-bold">Human Resources</td>
-                <td className="px-4 py-3 text-rose-400 bg-rose-500/10">Level 1.2 (Novice)</td>
-                <td className="px-4 py-3 text-rose-400 bg-rose-500/10">Level 1.4 (Novice)</td>
-                <td className="px-4 py-3 text-blue-400 bg-blue-500/10">Level 3.0 (Intermediate)</td>
-                <td className="px-4 py-3 text-amber-400 bg-amber-500/10">Level 2.1 (Beginner)</td>
-              </tr>
-            </tbody>
-          </table>
+          {heatmapData.length > 0 ? (
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900/80 font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th className="px-4 py-3">Department</th>
+                  {allSkills.map((skill) => (
+                    <th key={skill} className="px-4 py-3">{skill}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-semibold">
+                {heatmapData.map((deptData) => (
+                  <tr key={deptData.department}>
+                    <td className="px-4 py-3 text-white font-bold">{deptData.department}</td>
+                    {allSkills.map((skillName) => {
+                      const skill = deptData.skills.find((s: any) => s.skill === skillName);
+                      if (!skill) {
+                        return <td key={skillName} className="px-4 py-3 text-slate-500">N/A</td>;
+                      }
+                      
+                      const lvl = skill.avgCurrentLevel;
+                      let colorClass = 'text-slate-400 bg-slate-500/10';
+                      let label = 'Unknown';
+                      
+                      if (lvl >= 4) {
+                        colorClass = 'text-emerald-400 bg-emerald-500/10';
+                        label = 'Advanced';
+                      } else if (lvl >= 3) {
+                        colorClass = 'text-blue-400 bg-blue-500/10';
+                        label = 'Intermediate';
+                      } else if (lvl >= 2) {
+                        colorClass = 'text-amber-400 bg-amber-500/10';
+                        label = 'Beginner';
+                      } else {
+                        colorClass = 'text-rose-400 bg-rose-500/10';
+                        label = 'Novice';
+                      }
+
+                      return (
+                        <td key={skillName} className={`px-4 py-3 ${colorClass}`}>
+                          Level {lvl.toFixed(1)} ({label})
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center py-8 text-slate-400 text-sm">
+              {isLoading ? 'Loading heatmap data...' : 'No competency data available yet.'}
+            </div>
+          )}
         </div>
       </div>
 

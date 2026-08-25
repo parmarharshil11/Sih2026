@@ -19,11 +19,18 @@ export function QRScannerModal({ isOpen, onClose }: QRScannerModalProps) {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token.trim()) return;
+    
+    // Extract token if user pasted the full verification URL
+    let verifyToken = token.trim();
+    if (verifyToken.includes('/')) {
+      verifyToken = verifyToken.split('/').pop() || verifyToken;
+    }
+
     setIsVerifying(true);
     setResult(null);
 
     try {
-      const data = await api.get(`/certificates/verify/${token.trim()}`);
+      const data = await api.get(`/certificates/verify/${verifyToken}`);
       setResult(data);
       if (data.valid) {
         toast.success('Certificate is valid and verified!');
@@ -42,7 +49,7 @@ export function QRScannerModal({ isOpen, onClose }: QRScannerModalProps) {
       <form onSubmit={handleVerify} className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
-            Certificate Token / QR Code payload
+            Certificate Token / Verification URL
           </label>
           <div className="relative">
             <input
@@ -50,7 +57,7 @@ export function QRScannerModal({ isOpen, onClose }: QRScannerModalProps) {
               required
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste verification token UUID..."
+              placeholder="e.g. http://localhost:3000/verify/ab12cd34..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-700 text-white placeholder-slate-500 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono"
             />
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
