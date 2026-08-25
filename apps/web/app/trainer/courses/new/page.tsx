@@ -19,11 +19,16 @@ export default function CourseBuilderPage() {
   const [isAiDrafting, setIsAiDrafting] = useState(false);
 
   useEffect(() => {
-    api.get('/courses/categories').then((res) => {
-      const list = res?.data || res || [];
-      setCategories(list);
-      if (list.length > 0) setCategoryId(list[0].id);
-    });
+    api.get('/courses/categories')
+      .then((res) => {
+        const list = res?.data || res || [];
+        setCategories(list);
+        if (list.length > 0) setCategoryId(list[0].id);
+      })
+      .catch((err) => {
+        console.error('Failed to load categories:', err);
+        toast.error('Failed to load categories');
+      });
   }, []);
 
   const handleAiDraft = async () => {
